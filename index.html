@@ -65,10 +65,8 @@
 
         // --- Utility Components ---
         
-        // FIX: The Icon component was causing conflicts between React and Lucide.
-        // Lucide modifies the DOM directly, removing the <i> element React rendered.
-        // This new implementation uses a ref to let Lucide manage its own DOM node
-        // inside a wrapper that React controls, preventing the "removeChild" error.
+        // FIX: The Icon component was updated to remove display: contents.
+        // We now use a stable 'span' wrapper with inline-flex to prevent React reconciliation errors (removeChild).
         const Icon = ({ name, className }) => {
             const ref = useRef(null);
 
@@ -92,8 +90,8 @@
                 }
             }, [name, className]);
 
-            // Using display: contents allows the SVG to behave as if it's directly in the parent layout
-            return <span ref={ref} style={{ display: 'contents' }}></span>;
+            // Using inline-flex allows the wrapper to behave like an icon without breaking React's DOM tree
+            return <span ref={ref} className="inline-flex items-center justify-center shrink-0"></span>;
         };
 
         const formatPersianDate = (dateString) => {
