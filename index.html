@@ -540,8 +540,27 @@
             };
 
             const fetchCategories = async () => {
-                const { data: catData } = await supabaseClient.from('productcategory').select('*').order('title');
-                setCategories(catData || []);
+                // Optimistic update from cache
+                const cachedCtx = localStorage.getItem('bazaario_categories');
+                if (cachedCtx) {
+                    try {
+                        setCategories(JSON.parse(cachedCtx));
+                    } catch (e) {
+                        console.error('Cache parse error', e);
+                    }
+                }
+
+                // Fetch fresh data
+                const { data: catData, error } = await supabaseClient
+                    .from('productcategory')
+                    .select('id, title') // Optimization: Only fetch needed columns
+                    .order('title');
+                
+                if (!error && catData) {
+                    setCategories(catData);
+                    // Update cache
+                    localStorage.setItem('bazaario_categories', JSON.stringify(catData));
+                }
             };
 
             // Paginated Fetch
