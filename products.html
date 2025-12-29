@@ -20,16 +20,13 @@
 
     <style>
         body { font-family: 'Vazirmatn', sans-serif; scroll-behavior: smooth; }
-        .product-gradient { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
-        .sticky-summary { position: sticky; top: 100px; }
+        .sticky-summary { position: sticky; top: 20px; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     </style>
 </head>
-<body class="bg-[#fcfdfe] text-slate-800">
+<body class="bg-slate-50 text-slate-800">
     <div id="root"></div>
 
     <!-- React and Babel -->
@@ -53,7 +50,6 @@
 
             useEffect(() => {
                 const urlParams = new URLSearchParams(window.location.search);
-                // OPTIMIZED: Prioritize ID for exact match, fallback to Slug for SEO entry
                 const productId = urlParams.get('id');
                 const slug = urlParams.get('slug') || urlParams.get('name');
 
@@ -94,7 +90,6 @@
                 setLoading(true);
                 const decodedTitle = decodeURIComponent(slug).replace(/-/g, ' ');
                 
-                // Try exact title match first
                 const { data, error } = await supabaseClient
                     .from('product')
                     .select(`
@@ -108,7 +103,6 @@
                     .single();
 
                 if (error) {
-                    // Fallback: Partial search if exact match fails
                     const { data: partialData } = await supabaseClient
                         .from('product')
                         .select(`*, productcategory(id, title), brand(id, title), supplierstock(unitprice, supplieruserid), productproperty(value, propertykey(title))`)
@@ -181,12 +175,12 @@
 
             if (loading) return (
                 <div className="max-w-7xl mx-auto p-8 space-y-12">
-                    <div className="h-8 w-64 shimmer rounded-xl"></div>
+                    <div className="h-8 w-64 bg-slate-200 rounded-lg"></div>
                     <div className="flex flex-col lg:flex-row gap-12 text-right">
-                        <div className="flex-1 aspect-square shimmer rounded-[48px]"></div>
+                        <div className="flex-1 aspect-square bg-slate-200 rounded-3xl"></div>
                         <div className="flex-1 space-y-8 py-10">
-                            <div className="h-16 w-full shimmer rounded-2xl"></div>
-                            <div className="h-40 w-full shimmer rounded-3xl"></div>
+                            <div className="h-16 w-full bg-slate-200 rounded-xl"></div>
+                            <div className="h-40 w-full bg-slate-200 rounded-2xl"></div>
                         </div>
                     </div>
                 </div>
@@ -199,7 +193,7 @@
                     </div>
                     <h1 className="text-2xl font-black text-slate-900 mb-2">{error}</h1>
                     <p className="text-slate-500 mb-8 max-w-sm">ممکن است کالا حذف شده باشد یا آدرس اشتباه باشد.</p>
-                    <a href="index.html" className="bg-blue-900 text-white px-8 py-3 rounded-2xl font-black shadow-xl">بازگشت به بازار</a>
+                    <a href="index.html" className="bg-blue-900 text-white px-8 py-3 rounded-2xl font-black shadow-lg">بازگشت به بازار</a>
                 </div>
             );
 
@@ -207,168 +201,162 @@
 
             return (
                 <div className="min-h-screen flex flex-col">
-                    <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-[100] shadow-sm">
-                        <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+                    {/* Header */}
+                    <header className="bg-white border-b border-slate-200 sticky top-0 z-[100]">
+                        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                             <a href="index.html" className="flex items-center gap-3">
-                                <img src={logoPath} className="w-10 h-10 rounded-xl shadow-lg object-cover" alt="Logo" />
                                 <span className="text-2xl font-black text-blue-900 tracking-tighter">بازاریو</span>
                             </a>
-                            <div className="hidden md:flex gap-8 text-sm font-black text-slate-500">
+                            <div className="hidden md:flex gap-8 text-sm font-bold text-slate-500">
                                 <a href="index.html" className="hover:text-blue-900 transition-colors">لیست محصولات</a>
                                 <a href="https://blog.bazaario.net/" className="hover:text-blue-900 transition-colors">مجله استراتژی</a>
                                 <a href="https://tools.bazaario.net/" className="hover:text-blue-900 transition-colors">تحلیل بازار</a>
                             </div>
-                            <button className="bg-blue-900 text-white px-6 py-2.5 rounded-xl font-black text-xs shadow-lg hover:bg-blue-800 transition-all">پنل خرید</button>
+                            <button className="bg-blue-900 text-white px-5 py-2 rounded-xl font-bold text-xs shadow hover:bg-blue-800 transition-all">پنل خرید</button>
                         </div>
                     </header>
 
-                    <main className="flex-1 bg-white">
+                    {/* Main Content */}
+                    <main className="flex-1">
                         <div className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-                            <nav className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-10 overflow-hidden whitespace-nowrap">
+                            {/* Breadcrumb */}
+                            <nav className="flex items-center gap-2 text-xs font-bold text-slate-400 mb-8 overflow-hidden whitespace-nowrap">
                                 <a href="index.html" className="hover:text-blue-900">بازاریو</a>
                                 <i data-lucide="chevron-left" className="w-3 h-3"></i>
                                 <span className="text-slate-500">{product.productcategory?.title}</span>
                                 <i data-lucide="chevron-left" className="w-3 h-3"></i>
-                                <h1 className="text-slate-900 truncate max-w-[150px] md:max-w-none text-[10px] md:text-xs">{product.title}</h1>
+                                <h1 className="text-slate-900 truncate max-w-[200px] md:max-w-none">{product.title}</h1>
                             </nav>
 
-                            <div className="flex flex-col lg:flex-row gap-12 lg:gap-24 items-start">
+                            <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 items-start">
+                                {/* Image Section */}
                                 <div className="w-full lg:w-1/2">
-                                    <div className="bg-white rounded-[48px] aspect-square flex items-center justify-center p-8 md:p-16 shadow-2xl border border-slate-100 overflow-hidden relative group">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-white -z-10"></div>
+                                    <div className="bg-white rounded-3xl aspect-square flex items-center justify-center p-8 shadow-md border border-slate-100 overflow-hidden relative">
                                         {product.image_url ? (
-                                            <img src={product.image_url} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700" alt={`تأمین عمده ${product.title}`} />
+                                            <img src={product.image_url} className="w-full h-full object-contain" alt={`تأمین عمده ${product.title}`} />
                                         ) : (
                                             <i data-lucide="package" className="w-32 h-32 text-slate-200"></i>
                                         )}
-                                        <div className="absolute top-8 right-8 flex flex-col gap-2">
-                                            <span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg">اصالت کالا تأیید شده</span>
-                                            <span className="bg-blue-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg">کفِ قیمت بندر</span>
+                                        <div className="absolute top-6 right-6 flex flex-col gap-2">
+                                            <span className="bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">اصالت کالا</span>
+                                            <span className="bg-blue-900 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">قیمت واردکننده</span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="w-full lg:w-1/2 space-y-10 sticky-summary text-right">
+                                {/* Summary & Pricing Section */}
+                                <div className="w-full lg:w-1/2 space-y-8 sticky-summary text-right">
                                     <div>
-                                        <div className="flex items-center gap-3 text-xs font-black text-blue-600 mb-4 uppercase tracking-widest justify-end">
-                                            {product.brand?.title || "Direct Sourcing"} <i data-lucide="award"></i>
+                                        <div className="flex items-center gap-2 text-xs font-bold text-blue-600 mb-3 justify-end">
+                                            {product.brand?.title || "Direct Sourcing"} <i data-lucide="award" className="w-4 h-4"></i>
                                         </div>
-                                        <h2 className="text-3xl md:text-5xl font-black text-slate-900 leading-[1.2] mb-6">{product.title}</h2>
-                                        <div className="flex flex-wrap gap-4 text-xs font-bold justify-end">
-                                            <span className="bg-emerald-50 px-3 py-1.5 rounded-lg text-emerald-600 flex items-center gap-2"><i data-lucide="check-circle" className="w-3.5 h-3.5"></i> جنس جور (موجود)</span>
-                                            <span className="bg-slate-100 px-3 py-1.5 rounded-lg text-slate-500 flex items-center gap-2"><i data-lucide="tag" className="w-3.5 h-3.5"></i> شناسه: {product.id}</span>
+                                        <h2 className="text-2xl md:text-4xl font-black text-slate-900 leading-tight mb-4">{product.title}</h2>
+                                        <div className="flex flex-wrap gap-3 text-xs font-bold justify-end">
+                                            <span className="bg-emerald-50 px-3 py-1.5 rounded-lg text-emerald-700 border border-emerald-100 flex items-center gap-2"><i data-lucide="check-circle" className="w-3.5 h-3.5"></i> جنس جور</span>
+                                            <span className="bg-slate-100 px-3 py-1.5 rounded-lg text-slate-600 flex items-center gap-2"><i data-lucide="tag" className="w-3.5 h-3.5"></i> شناسه: {product.id}</span>
                                         </div>
                                     </div>
 
-                                    <div className="bg-[#0f172a] rounded-[40px] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden">
-                                        <div className="absolute -top-10 -left-10 w-40 h-40 bg-blue-500/20 rounded-full blur-[60px]"></div>
-                                        <div className="flex justify-between items-center mb-8 border-b border-white/10 pb-4">
-                                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest tracking-tighter">Verified Supply</span>
-                                            <h3 className="text-lg font-black flex items-center gap-3">ساختار چندقیمتی عمده <i data-lucide="trending-up" className="text-emerald-400"></i></h3>
+                                    {/* Pricing Card - Simplified */}
+                                    <div className="bg-white rounded-3xl p-6 md:p-8 shadow-lg border border-slate-100">
+                                        <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                                            <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Verified Supply</span>
+                                            <h3 className="text-base font-bold flex items-center gap-2">قیمت عمده <i data-lucide="trending-up" className="text-emerald-500 w-4 h-4"></i></h3>
                                         </div>
                                         
-                                        <div className="space-y-4">
+                                        <div className="space-y-3">
                                             {minPrice ? (
                                                 <>
-                                                    <div className="flex justify-between items-center bg-white/5 p-5 rounded-2xl border border-white/10">
-                                                        <i data-lucide="box" className="text-slate-500"></i>
+                                                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl">
                                                         <div className="text-left">
-                                                            <p className="text-[10px] text-slate-400 font-black mb-1">حداقل خرید (تکی عمده)</p>
-                                                            <p className="text-lg font-bold">{(minPrice * 1.1).toLocaleString()} <span className="text-xs opacity-50">تومان</span></p>
+                                                            <p className="text-xs text-slate-500 font-bold mb-1">حداقل خرید (تکی عمده)</p>
+                                                            <p className="text-lg font-black text-slate-800">{(minPrice * 1.1).toLocaleString()} <span className="text-xs font-normal text-slate-500">تومان</span></p>
                                                         </div>
+                                                        <i data-lucide="box" className="text-slate-400 w-5 h-5"></i>
                                                     </div>
-                                                    <div className="flex justify-between items-center bg-emerald-500 p-6 rounded-3xl shadow-xl shadow-emerald-500/20">
-                                                        <i data-lucide="zap" className="text-white w-8 h-8 opacity-50"></i>
-                                                        <div className="text-left text-slate-900">
-                                                            <p className="text-[10px] font-black mb-1 opacity-70">خرید تیراژ (۵۰ عدد+)</p>
-                                                            <p className="text-3xl font-black leading-none">{minPrice.toLocaleString()} <span className="text-xs font-normal">تومان</span></p>
+                                                    <div className="flex justify-between items-center bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                                                        <div className="text-left text-emerald-900">
+                                                            <p className="text-xs font-bold mb-1">خرید تیراژ (۵۰+)</p>
+                                                            <p className="text-2xl font-black">{minPrice.toLocaleString()} <span className="text-xs font-normal">تومان</span></p>
                                                         </div>
+                                                        <i data-lucide="zap" className="text-emerald-500 w-6 h-6"></i>
                                                     </div>
                                                 </>
                                             ) : (
-                                                <p className="p-8 text-center text-slate-400 font-bold italic">قیمت این کالا در حال به‌روزرسانی نهایی است.</p>
+                                                <p className="p-6 text-center text-slate-400 font-bold italic bg-slate-50 rounded-xl">قیمت در حال به‌روزرسانی...</p>
                                             )}
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-end gap-5 border border-slate-100">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-end gap-3 border border-slate-100">
                                             <div className="text-right">
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">تحویل بندر تا مغازه</p>
-                                                <p className="text-sm font-black text-slate-700">۴۸ ساعته (Cross-Dock)</p>
+                                                <p className="text-[10px] text-slate-400 font-bold">تحویل نهایی</p>
+                                                <p className="text-xs font-black text-slate-700">۴۸ ساعته</p>
                                             </div>
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600"><i data-lucide="truck"></i></div>
+                                            <div className="bg-white p-2 rounded-lg text-blue-600 shadow-sm"><i data-lucide="truck" className="w-4 h-4"></i></div>
                                         </div>
-                                        <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-end gap-5 border border-slate-100">
+                                        <div className="bg-slate-50 p-4 rounded-2xl flex items-center justify-end gap-3 border border-slate-100">
                                             <div className="text-right">
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">سورسینگ کالا</p>
-                                                <p className="text-sm font-black text-slate-700">مستقیم از بندر گناوه</p>
+                                                <p className="text-[10px] text-slate-400 font-bold">محل انبار</p>
+                                                <p className="text-xs font-black text-slate-700">کف گناوه</p>
                                             </div>
-                                            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-emerald-600"><i data-lucide="anchor"></i></div>
+                                            <div className="bg-white p-2 rounded-lg text-emerald-600 shadow-sm"><i data-lucide="anchor" className="w-4 h-4"></i></div>
                                         </div>
                                     </div>
 
-                                    <div className="pt-6 flex flex-col sm:flex-row gap-4">
-                                        <a href={`tel:09036712820`} className="flex-1 bg-blue-900 text-white h-16 rounded-2xl font-black text-lg flex items-center justify-center gap-3 shadow-2xl shadow-blue-900/30 hover:scale-105 transition-all">
-                                            <i data-lucide="phone-call" className="w-6 h-6"></i> استعلام و ثبت سفارش
+                                    <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                                        <a href={`tel:09036712820`} className="flex-1 bg-blue-900 text-white h-12 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg hover:bg-blue-800 transition-all">
+                                            <i data-lucide="phone-call" className="w-4 h-4"></i> استعلام تلفنی
                                         </a>
-                                        <button className="flex-1 border-2 border-slate-200 text-slate-500 h-16 rounded-2xl font-black hover:bg-slate-50 transition-all">دریافت فاکتور دیجیتال</button>
+                                        <button className="flex-1 border-2 border-slate-200 text-slate-600 h-12 rounded-xl font-bold hover:bg-slate-50 transition-all">دریافت فاکتور</button>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="mt-32 space-y-16">
+                            <div className="mt-24 space-y-12">
                                 <div className="border-b border-slate-100 pb-4 text-right">
-                                    <h3 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">مشخصات و آناتومی تجاری کالا</h3>
-                                    <p className="text-slate-400 font-bold mt-2 italic text-sm">Product Specifications & Market Insights</p>
+                                    <h3 className="text-xl font-black text-slate-900">مشخصات کالا</h3>
                                 </div>
                                 
                                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                                     <div className="lg:col-span-8 space-y-12">
-                                        <div className="bg-white border border-slate-100 rounded-[40px] shadow-sm overflow-hidden text-right">
+                                        <div className="bg-white border border-slate-100 rounded-3xl shadow-sm overflow-hidden text-right">
                                             {product.productproperty?.length > 0 ? (
                                                 <div className="grid grid-cols-1 md:grid-cols-2">
                                                     {product.productproperty.map((prop, idx) => (
-                                                        <div key={idx} className={`p-6 flex justify-between border-slate-50 ${idx % 2 === 0 ? 'bg-[#fcfdfe]' : 'bg-white'} border-b md:border-l`}>
-                                                            <span className="text-slate-500 font-bold text-sm tracking-tighter">{prop.propertykey?.title}</span>
-                                                            <span className="text-slate-900 font-black text-sm">{prop.value}</span>
+                                                        <div key={idx} className={`p-4 flex justify-between border-slate-50 ${idx % 2 === 0 ? 'bg-[#fcfdfe]' : 'bg-white'} border-b md:border-l`}>
+                                                            <span className="text-slate-500 font-bold text-sm">{prop.propertykey?.title}</span>
+                                                            <span className="text-slate-900 font-bold text-sm">{prop.value}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             ) : (
-                                                <p className="p-16 text-center text-slate-400 font-bold italic">مشخصات فنی ثبت نشده است.</p>
+                                                <p className="p-12 text-center text-slate-400 font-bold italic">مشخصات فنی ثبت نشده است.</p>
                                             )}
                                         </div>
 
                                         <article className="prose prose-slate max-w-none text-right">
-                                            <h4 className="text-xl font-black text-slate-900 mb-6">چرا خرید عمده {product.title} از بازاریو هوشمندانه است؟</h4>
-                                            <div className="text-slate-500 leading-loose text-justify font-medium space-y-6">
+                                            <h4 className="text-lg font-black text-slate-900 mb-4">چرا خرید عمده {product.title} از بازاریو؟</h4>
+                                            <div className="text-slate-600 leading-loose text-justify text-sm space-y-4">
                                                 <p>
-                                                    در بازار پرنوسان امروز، خرید کالا با قیمت واردکننده اصلی، بزرگترین مزیت رقابتی یک خرده‌فروش است. پلتفرم بازاریو با تمرکز بر **حذف واسطه‌های سنتی تهران** و تمرکز بر سورسینگ مستقیم از بندر گناوه، این امکان را فراهم کرده تا {product.title} با قیمتی تا ۲۵٪ پایین‌تر از بازار پایتخت به دست شما برسد. مدل لجستیک ما اجازه «خواب سرمایه» را نمی‌دهد؛ کالا بلافاصله پس از تخلیه از لنج بارگیری شده و در مرکز کراس‌داک تهران برای مقصد نهایی تفکیک می‌شود.
+                                                    در بازار پرنوسان امروز، خرید کالا با قیمت واردکننده اصلی، بزرگترین مزیت رقابتی یک خرده‌فروش است. پلتفرم بازاریو با تمرکز بر **حذف واسطه‌های سنتی تهران** و تمرکز بر سورسینگ مستقیم از بندر گناوه، این امکان را فراهم کرده تا {product.title} با قیمتی تا ۲۵٪ پایین‌تر از بازار پایتخت به دست شما برسد.
                                                 </p>
                                                 <p>
-                                                    {product.title} در دسته {product.productcategory?.title} قرار دارد و بر اساس داده‌های بخش **تحلیل بازار بازاریو**، یکی از کالاهای پرتقاضا در نیم‌سال جاری است. تضمین «جنس جور» بازاریو به این معناست که شما هرگز به مشتری خود نخواهید گفت «نداریم»؛ چرا که زنجیره تأمین ما به صورت مستقیم به انبارهای مرزی و تولیدکنندگان اصلی متصل است.
+                                                    {product.title} در دسته {product.productcategory?.title} قرار دارد و بر اساس داده‌های بخش **تحلیل بازار بازاریو**، یکی از کالاهای پرتقاضا است.
                                                 </p>
                                             </div>
                                         </article>
                                     </div>
                                     
                                     <div className="lg:col-span-4 space-y-6 text-right">
-                                        <div className="p-8 bg-blue-50 rounded-[32px] border border-blue-100">
-                                            <h4 className="font-black text-blue-900 mb-6 flex items-center justify-end gap-2">راهنمای خرید <i data-lucide="info"></i></h4>
-                                            <ul className="space-y-4">
-                                                <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">ارسال مستقیم از بندر به مغازه <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
-                                                <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">تضمین کمترین قیمت تأمین در کل کشور <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
-                                                <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">امکان ثبت استعلام اختصاصی برای تیراژ بالا <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
+                                        <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                                            <h4 className="font-bold text-slate-900 mb-4 flex items-center justify-end gap-2 text-sm">راهنمای خرید <i data-lucide="info" className="w-4 h-4"></i></h4>
+                                            <ul className="space-y-3">
+                                                <li className="flex gap-2 text-xs font-bold text-slate-600 justify-end">ارسال مستقیم از بندر <i data-lucide="check" className="text-emerald-500 w-3 h-3 shrink-0"></i></li>
+                                                <li className="flex gap-2 text-xs font-bold text-slate-600 justify-end">تضمین کمترین قیمت <i data-lucide="check" className="text-emerald-500 w-3 h-3 shrink-0"></i></li>
+                                                <li className="flex gap-2 text-xs font-bold text-slate-600 justify-end">امکان ثبت استعلام تیراژ <i data-lucide="check" className="text-emerald-500 w-3 h-3 shrink-0"></i></li>
                                             </ul>
-                                        </div>
-                                        <div className="p-8 bg-slate-900 rounded-[32px] text-white">
-                                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Strategic Insight</p>
-                                            <p className="text-sm font-bold leading-relaxed mb-6 italic">"برنده بازار کسی است که سریع‌تر پولش را بچرخاند. بازاریو کالای جور را در زمان جور به شما می‌رساند تا نقدینگی‌تان در انبار لخته نشود."</p>
-                                            <div className="flex items-center gap-3 justify-end">
-                                                <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Bazaario Strategy Team</span>
-                                                <div className="w-8 h-px bg-white/20"></div>
-                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -376,32 +364,29 @@
                         </div>
                     </main>
 
-                    <footer className="bg-[#0f172a] py-20 text-white text-right relative overflow-hidden border-t border-white/5">
-                        <div className="max-w-7xl mx-auto px-4 relative z-10">
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-16">
-                                <div className="md:col-span-6 space-y-8">
-                                    <div className="flex items-center gap-4">
-                                        <img src={logoPath} className="w-12 h-12 rounded-xl object-cover" alt="Logo" />
-                                        <span className="text-3xl font-black tracking-tighter">بازاریو</span>
-                                    </div>
-                                    <p className="text-slate-400 text-lg leading-relaxed max-w-xl font-medium italic border-r-4 border-blue-600 pr-6">
-                                        اولین زیرساخت هوشمند نقدینگی و جریان کالا در بازار ایران. ما انباردار نیستیم، ما شریان حیاتی زنجیره تأمین شما هستیم.
+                    <footer className="bg-slate-900 py-16 text-white text-right border-t border-slate-800">
+                        <div className="max-w-7xl mx-auto px-4">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-12">
+                                <div className="md:col-span-6 space-y-6">
+                                    <span className="text-2xl font-black tracking-tighter">بازاریو</span>
+                                    <p className="text-slate-400 text-sm leading-relaxed max-w-md font-medium border-r-4 border-blue-600 pr-4">
+                                        اولین زیرساخت هوشمند نقدینگی و جریان کالا در بازار ایران.
                                     </p>
                                 </div>
-                                <div className="md:col-span-6 grid grid-cols-2 gap-10">
-                                    <div className="space-y-6">
-                                        <h4 className="font-black text-blue-400 text-xs uppercase tracking-widest border-b border-white/10 pb-2">پلتفرم</h4>
-                                        <ul className="space-y-3 text-sm font-bold text-slate-500">
-                                            <li><a href="https://blog.bazaario.net/" className="hover:text-white transition-all">مجله استراتژی تأمین</a></li>
-                                            <li><a href="https://tools.bazaario.net/" className="hover:text-white flex items-center gap-2">ابزارهای هوشمند <i data-lucide="wrench" className="w-3 h-3 text-emerald-500"></i></a></li>
-                                            <li><a href="tel:09036712820" className="hover:text-white transition-all">تماس با مرکز گناوه</a></li>
+                                <div className="md:col-span-6 grid grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-blue-400 text-xs border-b border-white/10 pb-2">پلتفرم</h4>
+                                        <ul className="space-y-2 text-xs text-slate-400">
+                                            <li><a href="https://blog.bazaario.net/" className="hover:text-white transition-all">مجله استراتژی</a></li>
+                                            <li><a href="https://tools.bazaario.net/" className="hover:text-white">ابزارهای هوشمند</a></li>
+                                            <li><a href="tel:09036712820" className="hover:text-white">تماس با گناوه</a></li>
                                         </ul>
                                     </div>
-                                    <div className="space-y-6">
-                                        <h4 className="font-black text-emerald-400 text-xs uppercase tracking-widest border-b border-white/10 pb-2">امنیت بازار</h4>
-                                        <ul className="space-y-3 text-sm font-bold text-slate-500">
-                                            <li><a href="#" className="hover:text-white transition-all">تضمین «جنس جور»</a></li>
-                                            <li><a href="#" className="hover:text-white transition-all">قوانین معاملات B2B</a></li>
+                                    <div className="space-y-4">
+                                        <h4 className="font-bold text-emerald-400 text-xs border-b border-white/10 pb-2">امنیت</h4>
+                                        <ul className="space-y-2 text-xs text-slate-400">
+                                            <li><a href="#" className="hover:text-white">تضمین «جنس جور»</a></li>
+                                            <li><a href="#" className="hover:text-white">قوانین B2B</a></li>
                                         </ul>
                                     </div>
                                 </div>
