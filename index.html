@@ -372,7 +372,9 @@
         };
 
         const ProductCard = ({ product, onProductClick, formatPersianDate }) => {
-            const minPrice = product.supplierstock?.length > 0 ? Math.min(...product.supplierstock.map(s => s.unitprice)) : null;
+            const maxPrice = product.supplierstock?.length > 0 ? Math.max(...product.supplierstock.map(s => s.unitprice)) : null;
+            const bulkPrice = maxPrice ? Math.round(maxPrice * 1.1) : null;
+
             return (
                 <div 
                     onClick={() => onProductClick(product)}
@@ -386,11 +388,11 @@
                     </div>
                     <div className="p-4 md:p-10 flex-1 flex flex-col">
                         <h3 className="text-xs md:text-lg font-black text-slate-800 mb-4 line-clamp-2 h-8 md:h-14 leading-snug whitespace-normal">{product.title}</h3>
-                        {minPrice ? (
+                        {bulkPrice ? (
                             <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
                                 <div className="flex flex-col md:flex-row justify-between bg-blue-50/50 p-2 md:p-4 rounded-xl border border-blue-100/50 gap-1 text-nowrap">
-                                    <span className="text-slate-500 text-[8px] md:text-[9px] font-bold">کف قیمت عمده</span>
-                                    <span className="font-black text-blue-900 text-sm md:text-lg">{minPrice.toLocaleString()} <span className="text-[10px] opacity-60 font-normal">ت</span></span>
+                                    <span className="text-slate-500 text-[8px] md:text-[9px] font-bold">خرید تیراژ (۵۰+)</span>
+                                    <span className="font-black text-blue-900 text-sm md:text-lg">{bulkPrice.toLocaleString()} <span className="text-[10px] opacity-60 font-normal">ت</span></span>
                                 </div>
                             </div>
                         ) : (
