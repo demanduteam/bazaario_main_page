@@ -9,25 +9,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Vazirmatn Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <!-- Supabase SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Preconnect for Performance -->
-    <link rel="preconnect" href="https://wehyjatotbzxargnxasg.supabase.co">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
 
     <style>
         body { font-family: 'Vazirmatn', sans-serif; scroll-behavior: smooth; -webkit-tap-highlight-color: transparent; }
         .market-gradient { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
-        /* Only apply hover effects on non-touch devices to save mobile resources */
-        @media (hover: hover) {
-            .product-card:hover { border-color: #1e3a8a; box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.1); }
-        }
+        .product-card:hover { border-color: #1e3a8a; box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.1); }
+        .shimmer { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
         
         .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -36,18 +31,9 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Hardware acceleration for mobile drawer */
-        .drawer-transform { will-change: transform; }
+        /* Mobile Drawer Transition */
+        .drawer-open { transform: translateX(0); }
+        .drawer-closed { transform: translateX(100%); }
     </style>
 </head>
 <body class="bg-[#f8fafc] text-slate-800">
@@ -59,533 +45,56 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef, useCallback, memo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
-        // --- Supabase Setup ---
         const supabaseUrl = 'https://wehyjatotbzxargnxasg.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndlaHlqYXRvdGJ6eGFyZ254YXNnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE5MTIwMjEsImV4cCI6MjA2NzQ4ODAyMX0.2R448DuEBlTrNvaYXiYZ8D5M7MJNv7n1qmIDHQBNFiY';
         const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
         
-        const LOGO_PATH = "telegram-peer-photo-size-4-6021841146436766379-1-0-0.jpg";
-        const PAGE_SIZE = 12; // Pagination chunk size
-
-        // Fallback categories for instant load ("List in Front")
-        const DEFAULT_CATEGORIES = [
-            { id: 'default_1', title: 'لوازم خانگی' },
-            { id: 'default_2', title: 'کالای دیجیتال' },
-            { id: 'default_3', title: 'گجت‌های هوشمند' },
-            { id: 'default_4', title: 'لوازم جانبی' },
-            { id: 'default_5', title: 'تجهیزات سفر' },
-            { id: 'default_6', title: 'آرایشی و بهداشتی' }
-        ];
-
-        // --- Utility Components ---
-        
-        const Icon = memo(({ name, className }) => {
-            const ref = useRef(null);
-
-            useEffect(() => {
-                if (ref.current) {
-                    const i = document.createElement('i');
-                    i.setAttribute('data-lucide', name);
-                    if (className) i.className = className;
-                    
-                    ref.current.innerHTML = '';
-                    ref.current.appendChild(i);
-                    
-                    if (window.lucide && window.lucide.createIcons) {
-                        window.lucide.createIcons({
-                            root: ref.current
-                        });
-                    }
-                }
-            }, [name, className]);
-
-            return <span ref={ref} className="inline-flex items-center justify-center shrink-0"></span>;
-        });
-
-        const formatPersianDate = (dateString) => {
-            try {
-                const date = dateString ? new Date(dateString) : new Date();
-                return new Intl.DateTimeFormat('fa-IR', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                }).format(date);
-            } catch (e) {
-                return 'نامشخص';
-            }
-        };
-
-        const formatPrice = (price) => {
-            return price ? price.toLocaleString() : '---';
-        };
-
-        // --- Sub-Components ---
-
-        const ProductCard = memo(({ product, onClick }) => {
-            const minPrice = product.supplierstock?.length > 0 ? Math.min(...product.supplierstock.map(s => s.unitprice)) : null;
-            const hasStock = product.supplierstock?.length > 0;
-
-            return (
-                <div 
-                    onClick={() => onClick(product)}
-                    className="bg-white border border-slate-200 rounded-2xl md:rounded-[40px] overflow-hidden product-card transition-all flex flex-col group shadow-sm text-right cursor-pointer active:scale-95 duration-200 fade-in h-full"
-                >
-                    <div className="h-32 md:h-64 bg-slate-50 flex items-center justify-center relative border-b border-slate-100 overflow-hidden p-2 md:p-8">
-                        {product.image_url ? 
-                            <img 
-                                src={product.image_url} 
-                                // Disable hover scale on mobile for performance
-                                className="w-full h-full object-contain md:group-hover:scale-110 transition-transform duration-700" 
-                                alt={product.title}
-                                loading="lazy"
-                                decoding="async"
-                            /> 
-                            : <Icon name="package" className="w-10 h-10 md:w-20 md:h-20 text-slate-200" />
-                        }
-                        <div className="absolute top-2 right-2 md:top-4 md:right-4">
-                            <span className={`text-[8px] md:text-[10px] font-black px-1.5 py-0.5 md:px-3 md:py-1 rounded-full shadow-sm ${hasStock ? 'bg-white/90 text-emerald-600 border border-emerald-100' : 'bg-slate-200/90 text-slate-500'}`}>
-                                {hasStock ? 'موجود' : 'ناموجود'}
-                            </span>
-                        </div>
-                    </div>
-                    <div className="p-3 md:p-10 flex-1 flex flex-col">
-                        <div className="mb-1.5 md:mb-2">
-                            <span className="text-[8px] md:text-[9px] text-slate-400 font-bold bg-slate-50 px-1.5 py-0.5 md:px-2 md:py-1 rounded md:rounded-md inline-block truncate max-w-full">
-                                {product.productcategory?.title || 'دسته‌بندی'}
-                            </span>
-                        </div>
-                        
-                        <h3 className="text-xs md:text-lg font-black text-slate-800 mb-2 md:mb-4 line-clamp-2 leading-snug whitespace-normal min-h-[2.5em]">{product.title}</h3>
-                        {minPrice ? (
-                            <div className="mt-auto mb-2 md:mb-6">
-                                <div className="flex flex-col md:flex-row justify-between bg-blue-50/50 p-2 md:p-4 rounded-xl border border-blue-100/50 gap-1">
-                                    <span className="hidden md:block text-slate-500 text-[9px] font-bold">کف قیمت عمده</span>
-                                    <span className="font-black text-blue-900 text-xs md:text-lg">{formatPrice(minPrice)} <span className="text-[9px] md:text-[10px] opacity-60 font-normal">ت</span></span>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="mt-auto bg-slate-50 p-2 md:p-4 rounded-xl text-center mb-2 md:mb-6 border border-dashed border-slate-200">
-                                <p className="text-[8px] md:text-[9px] text-slate-400 font-black italic tracking-tighter">در حال تأمین</p>
-                            </div>
-                        )}
-                        <div className="hidden md:flex pt-3 border-t border-slate-50 justify-between items-center text-[9px] md:text-[10px] font-black text-slate-400">
-                            <span>کد: {product.id}</span>
-                            <span className="flex items-center gap-1">تحویل ۴۸س <Icon name="truck" className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600" /></span>
-                        </div>
-                    </div>
-                </div>
-            );
-        });
-
-        const MobileDrawer = ({ isOpen, onClose, categories, onCategoryClick }) => (
-            <div className={`fixed inset-0 z-[200] md:hidden transition-all duration-300 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
-                <div className={`absolute right-0 top-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col drawer-transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                    <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                        <div className="flex items-center gap-3">
-                            <span className="font-black text-blue-900 text-lg">منوی بازار</span>
-                        </div>
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
-                            <Icon name="x" className="w-6 h-6" />
-                        </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                        <nav className="space-y-6 text-right">
-                            <div className="space-y-2">
-                                <div onClick={() => onCategoryClick(null)} className="flex items-center gap-4 text-sm font-black text-slate-700 cursor-pointer p-3 rounded-2xl hover:bg-slate-50">
-                                    <Icon name="home" className="text-blue-900 w-5 h-5" /> صفحه اصلی
-                                </div>
-                                <a href="https://blog.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
-                                    <Icon name="book-open" className="text-emerald-500 w-5 h-5" /> مجله بازاریو
-                                </a>
-                                <a href="https://tools.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
-                                    <Icon name="wrench" className="text-blue-500 w-5 h-5" /> ابزارهای هوشمند
-                                </a>
-                            </div>
-                            <div className="h-px bg-slate-100"></div>
-                            <div className="space-y-3">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">راسته‌های بازار</h4>
-                                <div className="grid grid-cols-1 gap-2">
-                                    {categories.map(cat => (
-                                        <div key={cat.id} onClick={() => onCategoryClick(cat.id)} className="p-4 rounded-2xl text-xs font-black transition-all flex items-center justify-between bg-slate-50 text-slate-600 active:bg-slate-100">
-                                            <span>{cat.title}</span>
-                                            <Icon name="chevron-left" className="text-slate-300 w-4 h-4" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </nav>
-                    </div>
-                    <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
-                        <button className="w-full bg-blue-900 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 mb-4">پنل مدیریت خرید</button>
-                        <div className="flex justify-center gap-6">
-                            <a href="https://t.me/bazaario" className="text-slate-400 hover:text-blue-500"><Icon name="send" className="w-6 h-6" /></a>
-                            <a href="tel:09036712820" className="text-slate-400 hover:text-emerald-500"><Icon name="phone" className="w-6 h-6" /></a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-
-        const Header = ({ 
-            logoPath, 
-            logoError, 
-            setLogoError, 
-            searchTerm, 
-            setSearchTerm, 
-            showSearchDropdown, 
-            setShowSearchDropdown, 
-            searchSuggestions, 
-            onProductClick, 
-            onHomeClick, 
-            onMobileMenuClick 
-        }) => {
-            const searchRef = useRef(null);
-
-            useEffect(() => {
-                const handleClickOutside = (e) => {
-                    if (searchRef.current && !searchRef.current.contains(e.target)) {
-                        setShowSearchDropdown(false);
-                    }
-                };
-                document.addEventListener('mousedown', handleClickOutside);
-                return () => document.removeEventListener('mousedown', handleClickOutside);
-            }, [setShowSearchDropdown]);
-
-            return (
-                /* Removed backdrop-blur-md on mobile for performance, added md:backdrop-blur-md */
-                <header className="bg-white md:bg-white/95 md:backdrop-blur-md border-b border-slate-200 sticky top-0 z-[100] shadow-sm transition-all">
-                    <div className="max-w-7xl mx-auto px-4 h-16 md:h-24 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-2 md:gap-4 shrink-0">
-                            <button className="md:hidden p-2 -mr-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors" onClick={onMobileMenuClick}>
-                                <Icon name="menu" className="w-6 h-6" />
-                            </button>
-                            <div onClick={onHomeClick} className="cursor-pointer flex items-center gap-2 md:gap-3">
-                                {!logoError ? (
-                                    <img src={logoPath} alt="Logo" className="w-9 h-9 md:w-14 md:h-14 rounded-lg md:rounded-2xl shadow-md object-cover border border-slate-100" onError={() => setLogoError(true)} />
-                                ) : (
-                                    <div className="w-9 h-9 md:w-14 md:h-14 bg-blue-900 rounded-lg md:rounded-2xl flex items-center justify-center text-white shadow-lg"><Icon name="activity" className="w-5 h-5 md:w-8 md:h-8" /></div>
-                                )}
-                                <div className="flex flex-col">
-                                    <span className="text-lg md:text-2xl font-black text-blue-900 tracking-tighter leading-none">بازاریو</span>
-                                    <span className="hidden md:block text-[10px] text-slate-400 font-bold tracking-widest mt-1">تأمین عمده هوشمند</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="flex-1 max-w-2xl relative" ref={searchRef}>
-                            <div className="flex w-full border border-slate-200 rounded-xl md:rounded-2xl overflow-hidden bg-slate-50 focus-within:border-blue-900 focus-within:bg-white transition-all shadow-inner text-right relative z-10">
-                                <input 
-                                    type="text" 
-                                    placeholder="جستجو در محصولات..." 
-                                    className="flex-1 bg-transparent px-3 md:px-5 py-2 md:py-3.5 outline-none text-xs md:text-sm font-bold text-slate-700 text-right placeholder-slate-400"
-                                    value={searchTerm}
-                                    onFocus={() => setShowSearchDropdown(true)}
-                                    onChange={(e) => {setSearchTerm(e.target.value); setShowSearchDropdown(true);}}
-                                />
-                                <button className="bg-blue-900 text-white px-4 md:px-6 py-2 md:py-3 transition-colors hover:bg-blue-800">
-                                    <Icon name="search" className="w-4 h-4 md:w-5 md:h-5" />
-                                </button>
-                            </div>
-                            
-                            {/* Search Dropdown */}
-                            {showSearchDropdown && searchTerm.trim() && (
-                                <div className="absolute top-[120%] left-0 right-0 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[110] text-right animate-in fade-in slide-in-from-top-2 duration-200">
-                                    {searchSuggestions && searchSuggestions.length > 0 ? (
-                                        <div className="max-h-[300px] md:max-h-[380px] overflow-y-auto custom-scrollbar">
-                                            <div className="p-2 bg-slate-50 text-[10px] font-black text-slate-400 border-b border-slate-100">نتایج پیشنهادی</div>
-                                            {searchSuggestions.map(prod => {
-                                                const price = prod.supplierstock?.length > 0 ? Math.min(...prod.supplierstock.map(s => s.unitprice)) : null;
-                                                return (
-                                                    <div key={prod.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 transition-colors" onClick={() => onProductClick(prod)}>
-                                                        <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden border border-slate-200 shrink-0">
-                                                            {prod.image_url ? <img src={prod.image_url} className="w-full h-full object-contain" /> : <Icon name="package" className="m-auto opacity-20 w-5 h-5 mt-2.5" />}
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <h4 className="text-xs font-black text-slate-800 truncate">{prod.title}</h4>
-                                                            <p className="text-[9px] text-slate-400 font-bold mt-0.5">در دسته: {prod.productcategory?.title}</p>
-                                                        </div>
-                                                        {price && <span className="text-emerald-700 font-black text-[10px] bg-emerald-50 px-2 py-1 rounded-lg">{price.toLocaleString()} ت</span>}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    ) : (
-                                        <div className="p-8 text-center flex flex-col items-center gap-2">
-                                            <Icon name="search-x" className="w-8 h-8 text-slate-300" />
-                                            <span className="text-xs text-slate-400 font-bold">محصولی با این نام یافت نشد.</span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="hidden md:flex items-center gap-6 shrink-0">
-                            <a href="https://blog.bazaario.net/" className="text-xs font-black text-slate-600 hover:text-blue-900 transition-colors">مجله بازاریو</a>
-                            <a href="https://tools.bazaario.net/" className="flex items-center gap-2 text-xs font-black text-blue-900 hover:opacity-80"><Icon name="wrench" className="text-emerald-600 w-4 h-4" /> ابزارها</a>
-                            <button className="bg-blue-900 hover:bg-blue-800 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg shadow-blue-900/20 transition-all active:scale-95">پنل خرید</button>
-                        </div>
-                    </div>
-                </header>
-            );
-        };
-
-        const ProductDetail = ({ product, categoryName, onCategoryClick, formatPersianDate }) => {
-            if (!product) return null;
-            
-            const minPrice = product.supplierstock?.length > 0 ? Math.min(...product.supplierstock.map(s => s.unitprice)) : null;
-
-            return (
-                <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-right fade-in">
-                    {/* Breadcrumb */}
-                    <div className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-8 md:mb-12 overflow-x-auto no-scrollbar whitespace-nowrap">
-                        <span onClick={() => onCategoryClick(null)} className="hover:text-blue-900 cursor-pointer">بازاریو</span>
-                        <Icon name="chevron-left" className="w-3 h-3" />
-                        <span onClick={() => onCategoryClick(product.productcategoryid)} className="hover:text-blue-900 cursor-pointer">{categoryName}</span>
-                        <Icon name="chevron-left" className="w-3 h-3" />
-                        <span className="text-slate-900 truncate max-w-[200px]">{product.title}</span>
-                    </div>
-
-                    <div className="flex flex-col lg:flex-row gap-8 md:gap-16">
-                        {/* Image Section */}
-                        <div className="lg:w-5/12 flex flex-col gap-6">
-                            <div className="bg-white rounded-[32px] md:rounded-[48px] aspect-square flex items-center justify-center p-8 md:p-12 shadow-xl border border-slate-100 overflow-hidden relative group">
-                                {product.image_url ? 
-                                    <img src={product.image_url} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" alt={product.title} /> 
-                                    : <Icon name="package" className="w-32 h-32 text-slate-100" />
-                                }
-                                <div className="absolute top-6 right-6 md:top-8 md:right-8 bg-emerald-500 text-white px-3 md:px-4 py-1.5 rounded-full text-[8px] md:text-[10px] font-black shadow-lg flex items-center gap-1">
-                                    <Icon name="check-circle" className="w-3 h-3" /> اصالت تأیید شده
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Info Section */}
-                        <div className="lg:w-7/12 space-y-8 md:space-y-10">
-                            <div>
-                                <div className="flex items-center gap-3 text-xs font-black text-blue-600 mb-4 uppercase tracking-widest">
-                                    <Icon name="tag" className="w-4 h-4" /> {product.brand?.title || "برند متفرقه"}
-                                </div>
-                                <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-slate-900 leading-snug mb-4">{product.title}</h1>
-                                <p className="text-slate-400 font-bold text-xs md:text-sm tracking-tighter flex items-center gap-3">
-                                    <span>کد: {product.id}</span>
-                                    <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
-                                    <span>بروزرسانی: {formatPersianDate(product.createdat)}</span>
-                                </p>
-                            </div>
-
-                            {/* Pricing Box */}
-                            <div className="bg-slate-900 rounded-[32px] md:rounded-[40px] p-6 md:p-10 text-white shadow-2xl shadow-slate-900/20 relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-32 h-32 bg-blue-500/10 rounded-br-full blur-2xl"></div>
-                                <h2 className="text-lg md:text-xl font-black mb-6 md:mb-8 flex items-center gap-3 relative z-10">
-                                    <Icon name="trending-up" className="text-emerald-400 w-6 h-6" /> قیمت‌های عمده (کفِ بازار)
-                                </h2>
-                                
-                                <div className="space-y-4 md:space-y-6 relative z-10">
-                                    {product.supplierstock?.length > 0 ? (
-                                        <>
-                                            <div className="flex justify-between items-center bg-white/5 p-4 md:p-5 rounded-2xl md:rounded-3xl border border-white/10 hover:bg-white/10 transition-colors">
-                                                <span className="text-slate-400 text-[10px] md:text-xs font-bold">خرید تکی عمده</span>
-                                                <span className="text-xl md:text-2xl font-black">{formatPrice(product.supplierstock[0].unitprice * 1.1)} <span className="text-xs opacity-50 font-normal">ت</span></span>
-                                            </div>
-                                            <div className="flex justify-between items-center bg-emerald-600 p-5 md:p-6 rounded-2xl md:rounded-3xl shadow-xl shadow-emerald-600/20 transform hover:-translate-y-1 transition-all">
-                                                <div className="flex flex-col">
-                                                    <span className="text-emerald-100 text-[10px] md:text-xs font-black mb-1">خرید تیراژ (۵۰+)</span>
-                                                    <span className="text-[9px] bg-emerald-700/50 px-2 py-0.5 rounded text-emerald-100 w-fit">بهترین قیمت بازار</span>
-                                                </div>
-                                                <span className="text-2xl md:text-4xl font-black text-white">{formatPrice(product.supplierstock[0].unitprice)} <span className="text-xs opacity-80 font-normal">ت</span></span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="p-8 text-center bg-white/5 rounded-3xl border border-dashed border-white/10 text-slate-400 font-bold">
-                                            قیمت‌ها در حال بروزرسانی لحظه‌ای می‌باشند.
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Features Grid */}
-                            <div className="grid grid-cols-2 gap-3 md:gap-4">
-                                <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 flex items-center gap-3 md:gap-4 shadow-sm">
-                                    <div className="bg-blue-50 p-2 md:p-3 rounded-xl text-blue-900 shrink-0"><Icon name="truck" className="w-5 h-5" /></div>
-                                    <div><p className="text-[8px] md:text-[10px] text-slate-400 font-black">تحویل نهایی</p><p className="text-xs md:text-sm font-black text-slate-800">۴۸ تا ۷۲ ساعته</p></div>
-                                </div>
-                                <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 flex items-center gap-3 md:gap-4 shadow-sm">
-                                    <div className="bg-emerald-50 p-2 md:p-3 rounded-xl text-emerald-600 shrink-0"><Icon name="shield-check" className="w-5 h-5" /></div>
-                                    <div><p className="text-[8px] md:text-[10px] text-slate-400 font-black">انبارش</p><p className="text-xs md:text-sm font-black text-slate-800">تضمین سلامت کالا</p></div>
-                                </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                                <a href="tel:09036712820" className="flex-1 bg-blue-900 text-white h-14 md:h-16 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all text-sm md:text-base">
-                                    <Icon name="phone-call" className="w-5 h-5" /> ثبت سفارش تلفنی
-                                </a>
-                                <button className="flex-1 border-2 border-slate-200 text-slate-600 h-14 md:h-16 rounded-2xl font-black text-sm md:text-base hover:bg-slate-50 transition-colors">استعلام موجودی دیجیتال</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Specifications */}
-                    <div className="mt-16 md:mt-24">
-                        <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-8 md:mb-10 pb-4 border-b border-slate-100 flex items-center gap-2">
-                            <Icon name="list" className="text-blue-900 w-6 h-6" /> مشخصات فنی و تجاری
-                        </h2>
-                        <div className="bg-white rounded-3xl md:rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
-                            {product.productproperty?.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2">
-                                    {product.productproperty.map((prop, idx) => (
-                                        <div key={idx} className={`p-4 md:p-6 flex justify-between items-center border-slate-50 ${idx % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'} border-b md:border-l last:border-0`}>
-                                            <span className="text-slate-400 font-bold text-xs md:text-sm flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 bg-blue-900 rounded-full opacity-50"></span>
-                                                {prop.propertykey?.title}
-                                            </span>
-                                            <span className="text-slate-900 font-black text-xs md:text-sm">{prop.value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="p-12 text-center text-slate-400 font-bold italic flex flex-col items-center gap-2">
-                                    <Icon name="file-question" className="w-8 h-8 opacity-50" />
-                                    اطلاعات تکمیلی برای این محصول ثبت نشده است.
-                                </p>
-                            )}
-                        </div>
-                    </div>
-                </section>
-            );
-        };
-
-        const Footer = ({ logoPath, logoError }) => (
-            <footer className="bg-[#0f172a] py-12 md:py-20 text-white text-right relative overflow-hidden border-t border-white/5 mt-auto">
-                <div className="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
-                     <div className="absolute -top-20 -right-20 w-96 h-96 bg-blue-600 rounded-full blur-[100px]"></div>
-                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-emerald-600 rounded-full blur-[80px]"></div>
-                </div>
-                
-                <div className="max-w-7xl mx-auto px-4 relative z-10">
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-16">
-                        <div className="md:col-span-6 space-y-6">
-                            <div className="flex items-center gap-4">
-                                {!logoError && <img src={logoPath} className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-cover ring-2 ring-white/10" />}
-                                <span className="text-2xl md:text-3xl font-black tracking-tighter">بازاریو</span>
-                            </div>
-                            <p className="text-slate-400 text-sm md:text-lg leading-relaxed max-w-xl font-medium italic border-r-4 border-blue-600 pr-6">
-                                بازاریو اولین پلتفرم مدیریت هوشمند تأمین در ایران است که با تمرکز بر سرعت جابجایی کالا، خواب سرمایه در بازار را به حداقل می‌رساند.
-                            </p>
-                        </div>
-                        <div className="md:col-span-6 grid grid-cols-2 gap-8">
-                            <div className="space-y-4">
-                                <h4 className="font-black text-blue-400 text-[10px] md:text-xs uppercase tracking-widest border-b border-white/10 pb-2">پلتفرم</h4>
-                                <ul className="space-y-3 text-xs md:text-sm font-bold text-slate-400">
-                                    <li><a href="https://blog.bazaario.net/" className="hover:text-white transition-all flex items-center gap-2"><Icon name="chevron-left" className="w-3 h-3" /> مجله استراتژی</a></li>
-                                    <li><a href="https://tools.bazaario.net/" className="hover:text-white transition-all flex items-center gap-2"><Icon name="chevron-left" className="w-3 h-3" /> ابزارهای هوشمند</a></li>
-                                    <li><a href="#" className="hover:text-white transition-all flex items-center gap-2"><Icon name="chevron-left" className="w-3 h-3" /> استعلام قیمت</a></li>
-                                </ul>
-                            </div>
-                            <div className="space-y-4">
-                                <h4 className="font-black text-emerald-400 text-[10px] md:text-xs uppercase tracking-widest border-b border-white/10 pb-2">ارتباط مستقیم</h4>
-                                <ul className="space-y-3 text-xs md:text-sm font-bold text-slate-100">
-                                    <li className="flex items-center gap-2 justify-end tracking-tighter hover:text-emerald-400 transition-colors"><a href="tel:09036712820" dir="ltr">0903 671 2820</a> <Icon name="phone" className="w-3.5 h-3.5" /></li>
-                                    <li className="flex items-center gap-2 justify-end hover:text-blue-400 transition-colors"><a href="https://t.me/bazaario" target="_blank">bazaario@</a> <Icon name="send" className="w-3.5 h-3.5" /></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="mt-12 pt-8 border-t border-white/5 text-center text-[8px] md:text-[10px] font-black text-slate-600 tracking-[0.3em] uppercase">
-                        © 2024 Bazaario | Smart B2B Supply Chain
-                    </div>
-                </div>
-            </footer>
-        );
-
-        // --- Main App Component ---
+        const logoPath = "telegram-peer-photo-size-4-6021841146436766379-1-0-0.jpg";
 
         const App = () => {
             const [products, setProducts] = useState([]);
-            // Initialize categories with Cache or Defaults to avoid flicker
-            const [categories, setCategories] = useState(() => {
-                try {
-                    const cached = localStorage.getItem('bazaario_categories');
-                    return cached ? JSON.parse(cached) : DEFAULT_CATEGORIES;
-                } catch {
-                    return DEFAULT_CATEGORIES;
-                }
-            });
+            const [categories, setCategories] = useState([]);
             const [loading, setLoading] = useState(true);
             const [searchTerm, setSearchTerm] = useState('');
-            const [searchSuggestions, setSearchSuggestions] = useState([]);
             const [selectedCat, setSelectedCat] = useState(null);
             const [selectedProd, setSelectedProd] = useState(null);
             const [logoError, setLogoError] = useState(false);
             const [showSearchDropdown, setShowSearchDropdown] = useState(false);
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
             const [currentView, setCurrentView] = useState('home'); 
-            
-            // Pagination State
-            const [page, setPage] = useState(0);
-            const [hasMore, setHasMore] = useState(true);
-            const [fetchingMore, setFetchingMore] = useState(false);
+            const searchContainerRef = useRef(null);
 
             useEffect(() => {
-                fetchCategories();
-                fetchProducts(0, null);
+                fetchInitialData();
+                const handleClickOutside = (e) => {
+                    if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+                        setShowSearchDropdown(false);
+                    }
+                };
+                document.addEventListener('mousedown', handleClickOutside);
+                return () => document.removeEventListener('mousedown', handleClickOutside);
             }, []);
 
-            // Search Effect (Debounced)
             useEffect(() => {
-                const delayDebounceFn = setTimeout(() => {
-                    if (searchTerm.trim()) {
-                        fetchSearchSuggestions(searchTerm);
-                    } else {
-                        setSearchSuggestions([]);
-                    }
-                }, 500);
-
-                return () => clearTimeout(delayDebounceFn);
-            }, [searchTerm]);
-
-            useEffect(() => {
-                updateDocumentTitle();
-            }, [loading, currentView, selectedCat, selectedProd, categories]);
-
-            const updateDocumentTitle = () => {
+                lucide.createIcons();
                 if (currentView === 'category' && selectedCat) {
                     const catName = categories.find(c => c.id === selectedCat)?.title;
                     document.title = `خرید عمده ${catName} از گناوه | بازاریو`;
                 } else if (currentView === 'product' && selectedProd) {
                     document.title = `خرید عمده ${selectedProd.title} | قیمت وارداتی | بازاریو`;
                 } else {
-                    document.title = "بازاریو | راهکار هوشمند تأمین مستقیم";
+                    document.title = "بازاریو | راهکار هوشمند تأمین مستقیم و مدیریت سود";
                 }
-            };
+            }, [loading, products, showSearchDropdown, mobileMenuOpen, currentView, selectedCat, selectedProd, categories]);
 
-            const fetchCategories = async () => {
-                // Fetch fresh data
-                const { data: catData, error } = await supabaseClient
-                    .from('productcategory')
-                    .select('id, title') // Optimization: Only fetch needed columns
-                    .order('title');
-                
-                if (!error && catData) {
-                    setCategories(catData);
-                    // Update cache for next time
-                    localStorage.setItem('bazaario_categories', JSON.stringify(catData));
-                }
-            };
+            const fetchInitialData = async () => {
+                setLoading(true);
+                const { data: catData } = await supabaseClient.from('productcategory').select('*').order('title');
+                setCategories(catData || []);
 
-            // Paginated Fetch
-            const fetchProducts = async (pageNumber, categoryId = null) => {
-                if (pageNumber === 0) setLoading(true);
-                else setFetchingMore(true);
-
-                const from = pageNumber * PAGE_SIZE;
-                const to = from + PAGE_SIZE - 1;
-
-                let query = supabaseClient
+                const { data: prodData } = await supabaseClient
                     .from('product')
                     .select(`
                         *, 
@@ -594,43 +103,37 @@
                         supplierstock(unitprice, supplieruserid),
                         productproperty(value, propertykey(title))
                     `)
-                    .order('id', { ascending: false })
-                    .range(from, to);
-
-                if (categoryId) {
-                    query = query.eq('productcategoryid', categoryId);
-                }
-
-                const { data, error } = await query;
+                    .order('id', { ascending: false });
                 
-                if (data) {
-                    if (pageNumber === 0) {
-                        setProducts(data);
-                    } else {
-                        setProducts(prev => [...prev, ...data]);
-                    }
-                    setHasMore(data.length === PAGE_SIZE);
-                    setPage(pageNumber);
-                }
-                
+                setProducts(prodData || []);
                 setLoading(false);
-                setFetchingMore(false);
             };
 
-            // Server-Side Search
-            const fetchSearchSuggestions = async (term) => {
-                const { data } = await supabaseClient
-                    .from('product')
-                    .select('*, productcategory(title), supplierstock(unitprice)')
-                    .ilike('title', `%${term}%`)
-                    .limit(6);
-                
-                setSearchSuggestions(data || []);
-            };
+            const filteredProducts = useMemo(() => {
+                return products.filter(p => {
+                    const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
+                    const matchesCat = selectedCat ? p.productcategoryid === selectedCat : true;
+                    return matchesSearch && matchesCat;
+                });
+            }, [products, searchTerm, selectedCat]);
 
-            const handleLoadMore = () => {
-                if (hasMore && !fetchingMore) {
-                    fetchProducts(page + 1, selectedCat);
+            const searchSuggestions = useMemo(() => {
+                if (!searchTerm.trim()) return [];
+                return products.filter(p => 
+                    p.title.toLowerCase().includes(searchTerm.toLowerCase())
+                ).slice(0, 6);
+            }, [products, searchTerm]);
+
+            const formatPersianDate = (dateString) => {
+                try {
+                    const date = dateString ? new Date(dateString) : new Date();
+                    return new Intl.DateTimeFormat('fa-IR', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    }).format(date);
+                } catch (e) {
+                    return 'نامشخص';
                 }
             };
 
@@ -640,12 +143,6 @@
                 setCurrentView(catId ? 'category' : 'home');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 setMobileMenuOpen(false);
-                
-                // Reset Pagination and Fetch
-                setPage(0);
-                setHasMore(true);
-                setProducts([]); // Clear current list to show loading state
-                fetchProducts(0, catId);
             };
 
             const handleProductClick = (product) => {
@@ -655,166 +152,357 @@
                 setShowSearchDropdown(false);
             };
 
-            const selectedCategoryData = categories.find(c => c.id === selectedCat);
+            const selectedCategoryData = useMemo(() => {
+                return categories.find(c => c.id === selectedCat);
+            }, [categories, selectedCat]);
 
             return (
-                <div className="min-h-screen flex flex-col font-vazir">
-                    <Header 
-                        logoPath={LOGO_PATH}
-                        logoError={logoError}
-                        setLogoError={setLogoError}
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
-                        showSearchDropdown={showSearchDropdown}
-                        setShowSearchDropdown={setShowSearchDropdown}
-                        searchSuggestions={searchSuggestions}
-                        onProductClick={handleProductClick}
-                        onHomeClick={() => handleCategoryClick(null)}
-                        onMobileMenuClick={() => setMobileMenuOpen(true)}
-                    />
-
-                    <MobileDrawer 
-                        isOpen={mobileMenuOpen}
-                        onClose={() => setMobileMenuOpen(false)}
-                        categories={categories}
-                        onCategoryClick={handleCategoryClick}
-                    />
-
-                    <main className="flex-1">
-                        {loading && products.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-                                <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-slate-400 font-bold text-sm animate-pulse">در حال اتصال به بازار...</span>
+                <div className="min-h-screen flex flex-col">
+                    {/* Header */}
+                    <header className="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-[100] shadow-sm">
+                        <div className="max-w-7xl mx-auto px-4 h-16 md:h-20 flex items-center justify-between gap-4">
+                            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                                <button 
+                                    className="md:hidden p-2 -mr-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                    onClick={() => setMobileMenuOpen(true)}
+                                >
+                                    <i data-lucide="menu"></i>
+                                </button>
+                                <div onClick={() => {setCurrentView('home'); setSelectedCat(null); setSelectedProd(null);}} className="cursor-pointer flex items-center gap-2">
+                                    {!logoError ? (
+                                        <img src={logoPath} alt="Logo" className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl shadow-md object-cover border border-slate-100" onError={() => setLogoError(true)} />
+                                    ) : (
+                                        <div className="bg-blue-900 p-2 rounded-lg text-white shadow-lg"><i data-lucide="activity"></i></div>
+                                    )}
+                                    <span className="text-lg md:text-2xl font-black text-blue-900 tracking-tighter">بازاریو</span>
+                                </div>
                             </div>
-                        ) : (
-                            <>
-                                {currentView === 'home' && (
-                                    <>
-                                        {/* Hero Section */}
-                                        <section className="bg-white border-b border-slate-100 py-6 md:py-10 text-right fade-in">
-                                            <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8">
-                                                <aside className="w-full md:w-64 shrink-0">
-                                                    <div className="md:bg-slate-50/50 md:rounded-[32px] md:p-6 md:border md:border-slate-100 h-full">
-                                                        <h2 className="hidden md:block text-[10px] font-black text-slate-400 mb-6 px-2 uppercase tracking-[0.2em] flex items-center gap-2">
-                                                            <Icon name="grid" className="w-3 h-3" /> دسته‌بندی‌ها
-                                                        </h2>
-                                                        <nav className="flex md:flex-col gap-2 overflow-x-auto no-scrollbar py-2 md:py-0">
-                                                            <div onClick={() => handleCategoryClick(null)} className={`flex items-center gap-2 px-4 py-3 rounded-full md:rounded-2xl text-xs md:text-sm font-black cursor-pointer transition-all shrink-0 ${!selectedCat ? 'bg-blue-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
-                                                                <Icon name="list" className="w-4 h-4 opacity-50" />
-                                                                <span>همه بازار</span>
+
+                            {/* Search bar with improved mobile UX */}
+                            <div className="flex-1 max-w-xl relative" ref={searchContainerRef}>
+                                <div className="flex w-full border border-slate-200 rounded-xl md:rounded-2xl overflow-hidden bg-slate-50 focus-within:border-blue-900 focus-within:bg-white transition-all shadow-inner text-right">
+                                    <input 
+                                        type="text" 
+                                        placeholder="جستجو..." 
+                                        className="flex-1 bg-transparent px-3 md:px-5 py-2 md:py-3 outline-none text-xs md:text-sm font-bold text-slate-700 text-right"
+                                        value={searchTerm}
+                                        onFocus={() => setShowSearchDropdown(true)}
+                                        onChange={(e) => {setSearchTerm(e.target.value); setShowSearchDropdown(true);}}
+                                    />
+                                    <button className="bg-blue-900 text-white px-4 md:px-6 py-2 md:py-3 transition-colors"><i data-lucide="search" className="w-4 h-4 md:w-5 md:h-5"></i></button>
+                                </div>
+                                {showSearchDropdown && searchTerm.trim() && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-[110] text-right">
+                                        {searchSuggestions.length > 0 ? (
+                                            <div className="max-h-[300px] md:max-h-[380px] overflow-y-auto custom-scrollbar">
+                                                {searchSuggestions.map(prod => {
+                                                    const price = prod.supplierstock?.length > 0 ? Math.min(...prod.supplierstock.map(s => s.unitprice)) : null;
+                                                    return (
+                                                        <div key={prod.id} className="flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 transition-colors" onClick={() => handleProductClick(prod)}>
+                                                            <div className="w-10 h-10 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
+                                                                {prod.image_url ? <img src={prod.image_url} className="w-full h-full object-contain" /> : <i data-lucide="package" className="m-auto opacity-20"></i>}
                                                             </div>
-                                                            {categories.map(cat => (
-                                                                <div key={cat.id} onClick={() => handleCategoryClick(cat.id)} className="flex items-center gap-2 px-4 py-3 rounded-full md:rounded-2xl text-xs md:text-sm font-bold bg-slate-100 text-slate-600 cursor-pointer whitespace-nowrap active:bg-slate-200 hover:bg-slate-200 transition-colors shrink-0">
-                                                                    <span>{cat.title}</span>
-                                                                </div>
-                                                            ))}
-                                                        </nav>
-                                                    </div>
-                                                </aside>
-                                                <div className="flex-1 relative rounded-[32px] md:rounded-[48px] overflow-hidden market-gradient text-white flex items-center p-8 md:p-16 min-h-[300px] md:min-h-[480px] shadow-2xl group">
-                                                    <div className="relative z-10 max-w-xl text-right">
-                                                        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-1.5 rounded-full text-[10px] font-black mb-6 border border-white/20">
-                                                            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                                                            تأمین مستقیم از دبی و چین
+                                                            <div className="flex-1 min-w-0">
+                                                                <h4 className="text-xs font-black text-slate-800 truncate">{prod.title}</h4>
+                                                                <p className="text-[9px] text-slate-400 font-bold mt-0.5">در دسته: {prod.productcategory?.title}</p>
+                                                            </div>
+                                                            {price && <span className="text-emerald-700 font-black text-[10px]">{price.toLocaleString()} ت</span>}
                                                         </div>
-                                                        <h1 className="text-3xl md:text-6xl font-black mb-4 md:mb-8 leading-tight tracking-tight">تأمین هوشمند؛ <br/> تضمین «جنس جور»</h1>
-                                                        <p className="text-xs md:text-lg text-slate-300 mb-8 md:mb-12 leading-relaxed max-w-md">واسطه‌های تهران را حذف کردیم. کالای وارداتی را مستقیماً از مبدأ با قیمت رقابتی و تضمین اصالت تأمین کنید.</p>
-                                                        <button onClick={() => {document.getElementById('products-section').scrollIntoView({behavior: 'smooth'})}} className="bg-white text-blue-900 px-8 md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-black text-sm md:text-lg hover:shadow-xl hover:shadow-white/20 transition-all active:scale-95 flex items-center gap-3 w-fit">
-                                                            مشاهده لیست کالاها <Icon name="arrow-down" className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
-                                                    <div className="absolute inset-0 opacity-10 pointer-events-none">
-                                                        <svg width="100%" height="100%"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/></pattern><rect width="100%" height="100%" fill="url(#grid)" /></svg>
-                                                    </div>
-                                                    <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500 rounded-full blur-[100px] opacity-50 group-hover:opacity-70 transition-opacity"></div>
-                                                </div>
+                                                    );
+                                                })}
                                             </div>
-                                        </section>
-                                        
-                                        <section id="products-section" className="max-w-7xl mx-auto px-4 py-12 md:py-20 text-right">
-                                            <div className="flex items-center justify-between mb-8 md:mb-12">
-                                                <h2 className="text-2xl md:text-4xl font-black text-slate-900 flex items-center gap-3">
-                                                    <span className="w-3 h-8 bg-blue-900 rounded-full"></span>
-                                                    آخرین ورودی‌های بندر
-                                                </h2>
+                                        ) : (
+                                            <div className="p-6 text-center text-xs text-slate-400 font-bold italic">کالایی یافت نشد.</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="hidden md:flex items-center gap-6 shrink-0">
+                                <a href="https://blog.bazaario.net/" className="text-xs font-black text-slate-600 hover:text-blue-900 transition-colors">مجله بازاریو</a>
+                                <a href="https://tools.bazaario.net/" className="flex items-center gap-2 text-xs font-black text-blue-900"><i data-lucide="wrench" className="text-emerald-600"></i> ابزارها</a>
+                                <button className="bg-blue-900 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg">پنل خرید</button>
+                            </div>
+                        </div>
+
+                        {/* CORRECTED MOBILE DRAWER */}
+                        <div className={`fixed inset-0 z-[200] md:hidden transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)}></div>
+                            <div className={`absolute right-0 top-0 h-full w-[85%] max-w-sm bg-white shadow-2xl transition-transform duration-300 ease-out flex flex-col ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                                {/* Drawer Header */}
+                                <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                    <div className="flex items-center gap-3">
+                                        <img src={logoPath} className="w-8 h-8 rounded-lg shadow-sm" alt="Logo" />
+                                        <span className="font-black text-blue-900">منوی بازار</span>
+                                    </div>
+                                    <button onClick={() => setMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-rose-500 transition-colors">
+                                        <i data-lucide="x" className="w-6 h-6"></i>
+                                    </button>
+                                </div>
+
+                                {/* Drawer Content */}
+                                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                                    <nav className="space-y-8 text-right">
+                                        <div className="space-y-4">
+                                            <div onClick={() => handleCategoryClick(null)} className="flex items-center gap-4 text-sm font-black text-slate-700 cursor-pointer p-3 rounded-2xl hover:bg-slate-50">
+                                                <i data-lucide="home" className="text-blue-900 w-5 h-5"></i> صفحه اصلی
                                             </div>
-                                            {/* Mobile: grid-cols-2, Desktop: grid-cols-4 for better density */}
-                                            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
-                                                {products.map(product => (
-                                                    <ProductCard key={product.id} product={product} onClick={handleProductClick} />
+                                            <a href="https://blog.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
+                                                <i data-lucide="book-open" className="text-emerald-500 w-5 h-5"></i> مجله بازاریو
+                                            </a>
+                                            <a href="https://tools.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
+                                                <i data-lucide="wrench" className="text-blue-500 w-5 h-5"></i> ابزارهای هوشمند
+                                            </a>
+                                        </div>
+
+                                        <div className="h-px bg-slate-100"></div>
+
+                                        <div className="space-y-4">
+                                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3">راسته‌های بازار</h4>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {categories.map(cat => (
+                                                    <div 
+                                                        key={cat.id} 
+                                                        onClick={() => handleCategoryClick(cat.id)} 
+                                                        className={`p-4 rounded-2xl text-xs font-black transition-all flex items-center justify-between ${selectedCat === cat.id ? 'bg-blue-900 text-white shadow-lg' : 'bg-slate-50 text-slate-600 active:bg-slate-100'}`}
+                                                    >
+                                                        <span>{cat.title}</span>
+                                                        <i data-lucide="chevron-left" className={`w-3 h-3 ${selectedCat === cat.id ? 'text-white' : 'text-slate-300'}`}></i>
+                                                    </div>
                                                 ))}
                                             </div>
-                                            {hasMore && (
-                                                <div className="mt-12 text-center">
-                                                    <button 
-                                                        onClick={handleLoadMore} 
-                                                        disabled={fetchingMore}
-                                                        className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-8 py-4 rounded-2xl font-black text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 mx-auto"
-                                                    >
-                                                        {fetchingMore ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> : <Icon name="chevron-down" className="w-4 h-4" />}
-                                                        {fetchingMore ? 'در حال دریافت...' : 'مشاهده بیشتر'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </section>
-                                    </>
-                                )}
+                                        </div>
+                                    </nav>
+                                </div>
 
-                                {currentView === 'category' && (
-                                    <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-right fade-in">
-                                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-8 overflow-x-auto no-scrollbar whitespace-nowrap">
-                                            <span onClick={() => handleCategoryClick(null)} className="hover:text-blue-900 cursor-pointer">بازاریو</span>
-                                            <Icon name="chevron-left" className="w-3 h-3" />
-                                            <span className="text-slate-900">خرید عمده {selectedCategoryData?.title}</span>
-                                        </div>
-                                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 md:mb-12">
-                                            <h1 className="text-2xl md:text-5xl font-black text-slate-900">تأمین و پخش عمده {selectedCategoryData?.title}</h1>
-                                        </div>
-                                        
-                                        {products.length > 0 ? (
-                                            <>
-                                                {/* Mobile: grid-cols-2, Desktop: grid-cols-4 for better density */}
-                                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-8">
-                                                    {products.map(product => (
-                                                        <ProductCard key={product.id} product={product} onClick={handleProductClick} />
-                                                    ))}
-                                                </div>
-                                                {hasMore && (
-                                                    <div className="mt-12 text-center">
-                                                        <button 
-                                                            onClick={handleLoadMore} 
-                                                            disabled={fetchingMore}
-                                                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 px-8 py-4 rounded-2xl font-black text-sm transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2 mx-auto"
-                                                        >
-                                                            {fetchingMore ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div> : <Icon name="chevron-down" className="w-4 h-4" />}
-                                                            {fetchingMore ? 'در حال دریافت...' : 'مشاهده بیشتر'}
-                                                        </button>
+                                {/* Drawer Footer */}
+                                <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
+                                    <button className="w-full bg-blue-900 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 mb-4">پنل مدیریت خرید</button>
+                                    <div className="flex justify-center gap-6">
+                                        <a href="https://t.me/bazaario" className="text-slate-400 hover:text-blue-500"><i data-lucide="send" className="w-6 h-6"></i></a>
+                                        <a href="tel:09036712820" className="text-slate-400 hover:text-emerald-500"><i data-lucide="phone" className="w-6 h-6"></i></a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Main Content Area */}
+                    <main className="flex-1">
+                        {currentView === 'home' && (
+                            <>
+                                <section className="bg-white border-b border-slate-100 py-4 md:py-8 text-right">
+                                    <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8">
+                                        <aside className="w-full md:w-64 shrink-0 overflow-hidden">
+                                            <div className="md:bg-slate-50/50 md:rounded-[32px] md:p-6 md:border md:border-slate-100">
+                                                <h2 className="hidden md:block text-[10px] font-black text-slate-400 mb-6 px-2 uppercase tracking-[0.2em]">اکوسیستم محصولات</h2>
+                                                <nav className="flex md:flex-col gap-2 overflow-x-auto no-scrollbar py-2 md:py-0">
+                                                    <div onClick={() => handleCategoryClick(null)} className={`flex items-center gap-2 px-4 py-2.5 rounded-full md:rounded-2xl text-xs md:text-sm font-black cursor-pointer transition-all ${!selectedCat ? 'bg-blue-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
+                                                        <i data-lucide="list" className="w-4 h-4 opacity-50"></i>
+                                                        <span>همه بازار</span>
                                                     </div>
-                                                )}
-                                            </>
-                                        ) : (
-                                            <div className="bg-slate-50 rounded-3xl p-12 text-center border-2 border-dashed border-slate-200">
-                                                <Icon name="package-open" className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                                                <h3 className="text-lg font-black text-slate-500">محصولی در این دسته یافت نشد.</h3>
-                                                <button onClick={() => handleCategoryClick(null)} className="mt-4 text-blue-900 text-sm font-bold hover:underline">بازگشت به همه محصولات</button>
+                                                    {categories.map(cat => (
+                                                        <div key={cat.id} onClick={() => handleCategoryClick(cat.id)} className="flex items-center gap-2 px-4 py-2.5 rounded-full md:rounded-2xl text-xs md:text-sm font-bold bg-slate-100 text-slate-600 cursor-pointer whitespace-nowrap active:bg-slate-200">
+                                                            <span>{cat.title}</span>
+                                                        </div>
+                                                    ))}
+                                                </nav>
                                             </div>
-                                        )}
-                                    </section>
-                                )}
-
-                                {currentView === 'product' && selectedProd && (
-                                    <ProductDetail 
-                                        product={selectedProd} 
-                                        categoryName={selectedProd.productcategory?.title}
-                                        onCategoryClick={handleCategoryClick}
-                                        formatPersianDate={formatPersianDate}
-                                    />
-                                )}
+                                        </aside>
+                                        <div className="flex-1 relative rounded-[32px] md:rounded-[48px] overflow-hidden market-gradient text-white flex items-center p-8 md:p-12 min-h-[300px] md:min-h-[480px] shadow-2xl">
+                                            <div className="relative z-10 max-w-xl text-right">
+                                                <h1 className="text-2xl md:text-6xl font-black mb-4 md:mb-8 leading-tight">تأمین هوشمند؛ <br/> تضمین «جنس جور»</h1>
+                                                <p className="text-xs md:text-lg text-slate-300 mb-6 md:mb-12 leading-relaxed">واسطه‌های تهران را حذف کردیم. کالای وارداتی را مستقیماً از مبدأ با قیمت رقابتی تأمین کنید.</p>
+                                                <button className="bg-white text-blue-900 px-8 md:px-12 py-3 md:py-5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg">مشاهده لیست کالاها</button>
+                                            </div>
+                                            <div className="absolute inset-0 opacity-10 pointer-events-none">
+                                                <svg width="100%" height="100%"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/></pattern><rect width="100%" height="100%" fill="url(#grid)" /></svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section className="max-w-7xl mx-auto px-4 py-12 text-right">
+                                    <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-8 md:mb-12">آخرین ورودی‌های بندر</h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+                                        {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} onProductClick={handleProductClick} formatPersianDate={formatPersianDate} />)}
+                                    </div>
+                                </section>
                             </>
+                        )}
+
+                        {currentView === 'category' && (
+                            <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-right">
+                                <div className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-8 overflow-x-auto no-scrollbar whitespace-nowrap">
+                                    <span onClick={() => handleCategoryClick(null)} className="hover:text-blue-900 cursor-pointer">بازاریو</span>
+                                    <i data-lucide="chevron-left" className="w-3 h-3"></i>
+                                    <span className="text-slate-900">خرید عمده {selectedCategoryData?.title}</span>
+                                </div>
+                                <h1 className="text-2xl md:text-5xl font-black text-slate-900 mb-8 md:mb-12">تأمین و پخش عمده {selectedCategoryData?.title}</h1>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
+                                    {filteredProducts.map(product => <ProductCard key={product.id} product={product} onProductClick={handleProductClick} formatPersianDate={formatPersianDate} />)}
+                                </div>
+                            </section>
+                        )}
+
+                        {currentView === 'product' && selectedProd && (
+                            <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-right">
+                                <div className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-12 overflow-x-auto no-scrollbar whitespace-nowrap">
+                                    <span onClick={() => handleCategoryClick(null)} className="hover:text-blue-900 cursor-pointer">بازاریو</span>
+                                    <i data-lucide="chevron-left" className="w-3 h-3"></i>
+                                    <span onClick={() => handleCategoryClick(selectedProd.productcategoryid)} className="hover:text-blue-900 cursor-pointer">{selectedProd.productcategory?.title}</span>
+                                    <i data-lucide="chevron-left" className="w-3 h-3"></i>
+                                    <span className="text-slate-900 truncate max-w-[200px]">{selectedProd.title}</span>
+                                </div>
+
+                                <div className="flex flex-col lg:flex-row gap-8 md:gap-20">
+                                    <div className="lg:w-1/2 flex flex-col gap-6">
+                                        <div className="bg-white rounded-[32px] md:rounded-[48px] aspect-square flex items-center justify-center p-8 md:p-12 shadow-xl border border-slate-100 overflow-hidden relative">
+                                            {selectedProd.image_url ? <img src={selectedProd.image_url} className="w-full h-full object-contain" alt={selectedProd.title} /> : <i data-lucide="package" className="w-32 h-32 text-slate-100"></i>}
+                                            <div className="absolute top-6 right-6 md:top-8 md:right-8 bg-emerald-500 text-white px-3 md:px-4 py-1.5 rounded-full text-[8px] md:text-[10px] font-black shadow-lg">اصالت تأیید شده</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="lg:w-1/2 space-y-8 md:space-y-10">
+                                        <div>
+                                            <div className="flex items-center gap-3 text-xs font-black text-blue-600 mb-4 uppercase tracking-widest">
+                                                <i data-lucide="tag" className="w-4 h-4"></i> {selectedProd.brand?.title || "بدون برند"}
+                                            </div>
+                                            <h1 className="text-2xl md:text-5xl font-black text-slate-900 leading-snug mb-4">{selectedProd.title}</h1>
+                                            <p className="text-slate-400 font-bold text-xs md:text-sm tracking-tighter">کد: {selectedProd.id} | آپدیت: {formatPersianDate(selectedProd.createdat)}</p>
+                                        </div>
+
+                                        <div className="bg-slate-900 rounded-[32px] md:rounded-[40px] p-6 md:p-10 text-white shadow-2xl relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-24 h-24 bg-blue-500/10 rounded-br-full"></div>
+                                            <h2 className="text-lg md:text-xl font-black mb-6 md:mb-8 flex items-center gap-3"><i data-lucide="trending-up" className="text-emerald-400"></i> قیمت‌های عمده (کفِ بازار)</h2>
+                                            <div className="space-y-4 md:space-y-6">
+                                                {selectedProd.supplierstock?.length > 0 ? (
+                                                    <>
+                                                        <div className="flex justify-between items-center bg-white/5 p-4 md:p-5 rounded-2xl md:rounded-3xl border border-white/10">
+                                                            <span className="text-slate-400 text-[10px] md:text-xs font-bold">خرید تکی عمده</span>
+                                                            <span className="text-xl md:text-2xl font-black">{(selectedProd.supplierstock[0].unitprice * 1.1).toLocaleString()} <span className="text-xs opacity-50 font-normal">ت</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center bg-emerald-500 p-5 md:p-6 rounded-2xl md:rounded-3xl shadow-xl shadow-emerald-500/20">
+                                                            <span className="text-emerald-900 text-[10px] md:text-xs font-black">خرید تیراژ (۵۰+)</span>
+                                                            <span className="text-2xl md:text-3xl font-black text-white">{selectedProd.supplierstock[0].unitprice.toLocaleString()} <span className="text-xs opacity-80 font-normal">ت</span></span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="p-8 text-center bg-white/5 rounded-3xl border border-dashed border-white/10 text-slate-400 font-bold">قیمت در حال بروزرسانی...</div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3 md:gap-4">
+                                            <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 flex items-center gap-3 md:gap-4 shadow-sm">
+                                                <div className="bg-blue-50 p-2 md:p-3 rounded-xl text-blue-900"><i data-lucide="truck" className="w-5 h-5"></i></div>
+                                                <div><p className="text-[8px] md:text-[10px] text-slate-400 font-black">تحویل نهایی</p><p className="text-xs md:text-sm font-black">۴۸ ساعته</p></div>
+                                            </div>
+                                            <div className="bg-white p-4 md:p-6 rounded-2xl md:rounded-3xl border border-slate-100 flex items-center gap-3 md:gap-4 shadow-sm">
+                                                <div className="bg-emerald-50 p-2 md:p-3 rounded-xl text-emerald-600"><i data-lucide="shield-check" className="w-5 h-5"></i></div>
+                                                <div><p className="text-[8px] md:text-[10px] text-slate-400 font-black">انبارش</p><p className="text-xs md:text-sm font-black">کف گناوه</p></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-8 flex flex-col sm:flex-row gap-4">
+                                            <a href="tel:09036712820" className="flex-1 bg-blue-900 text-white h-14 md:h-16 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl hover:scale-105 transition-all text-sm md:text-base">
+                                                <i data-lucide="phone-call" className="w-5 h-5"></i> ثبت سفارش تلفنی
+                                            </a>
+                                            <button className="flex-1 border-2 border-slate-200 text-slate-600 h-14 md:h-16 rounded-2xl font-black text-sm md:text-base active:bg-slate-50">استعلام دیجیتال</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-16 md:mt-24">
+                                    <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-8 md:mb-10 pb-4 border-b border-slate-100">مشخصات و توضیحات تجاری</h2>
+                                    <div className="bg-white rounded-3xl md:rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                                        {selectedProd.productproperty?.length > 0 ? (
+                                            <div className="grid grid-cols-1 md:grid-cols-2">
+                                                {selectedProd.productproperty.map((prop, idx) => (
+                                                    <div key={idx} className={`p-4 md:p-6 flex justify-between border-slate-50 ${idx % 2 === 0 ? 'bg-slate-50/50' : 'bg-white'} border-b md:border-l`}>
+                                                        <span className="text-slate-400 font-bold text-xs md:text-sm">{prop.propertykey?.title}</span>
+                                                        <span className="text-slate-900 font-black text-xs md:text-sm">{prop.value}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="p-12 text-center text-slate-400 font-bold italic">مشخصاتی ثبت نشده است.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            </section>
                         )}
                     </main>
 
-                    <Footer logoPath={LOGO_PATH} logoError={logoError} />
+                    {/* Footer */}
+                    <footer className="bg-[#0f172a] py-12 md:py-20 text-white text-right relative overflow-hidden border-t border-white/5">
+                        <div className="max-w-7xl mx-auto px-4 relative z-10">
+                            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-16">
+                                <div className="md:col-span-6 space-y-6">
+                                    <div className="flex items-center gap-4">
+                                        {!logoError && <img src={logoPath} className="w-10 h-10 md:w-12 md:h-12 rounded-xl object-cover" />}
+                                        <span className="text-2xl md:text-3xl font-black tracking-tighter">بازاریو</span>
+                                    </div>
+                                    <p className="text-slate-400 text-sm md:text-lg leading-relaxed max-w-xl font-medium italic border-r-4 border-blue-600 pr-6">
+                                        بازاریو اولین پلتفرم مدیریت هوشمند تأمین در ایران است که با تمرکز بر سرعت جابجایی کالا، خواب سرمایه در بازار را حذف می‌کند.
+                                    </p>
+                                </div>
+                                <div className="md:col-span-6 grid grid-cols-2 gap-8">
+                                    <div className="space-y-4">
+                                        <h4 className="font-black text-blue-400 text-[10px] md:text-xs uppercase tracking-widest border-b border-white/10 pb-2">پلتفرم</h4>
+                                        <ul className="space-y-2 text-xs md:text-sm font-bold text-slate-500">
+                                            <li><a href="https://blog.bazaario.net/" className="hover:text-white transition-all">مجله استراتژی</a></li>
+                                            <li><a href="https://tools.bazaario.net/" className="hover:text-white transition-all">ابزارهای هوشمند</a></li>
+                                            <li><a href="#" className="hover:text-white transition-all">استعلام قیمت</a></li>
+                                        </ul>
+                                    </div>
+                                    <div className="space-y-4">
+                                        <h4 className="font-black text-emerald-400 text-[10px] md:text-xs uppercase tracking-widest border-b border-white/10 pb-2">ارتباط</h4>
+                                        <ul className="space-y-3 text-xs md:text-sm font-bold text-slate-100">
+                                            <li className="flex items-center gap-2 justify-end tracking-tighter"><a href="tel:09036712820" dir="ltr">0903 671 2820</a> <i data-lucide="phone" className="w-3.5 h-3.5 text-emerald-400"></i></li>
+                                            <li className="flex items-center gap-2 justify-end"><a href="https://t.me/bazaario" target="_blank">bazaario@</a> <i data-lucide="send" className="w-3.5 h-3.5 text-blue-400"></i></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-12 pt-8 border-t border-white/5 text-center text-[8px] md:text-[10px] font-black text-slate-600 tracking-[0.4em] uppercase">
+                                © 2024 Bazaario | Professional B2B Supply Chain
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const ProductCard = ({ product, onProductClick, formatPersianDate }) => {
+            const minPrice = product.supplierstock?.length > 0 ? Math.min(...product.supplierstock.map(s => s.unitprice)) : null;
+            return (
+                <div 
+                    onClick={() => onProductClick(product)}
+                    className="bg-white border border-slate-200 rounded-3xl md:rounded-[40px] overflow-hidden product-card transition-all flex flex-col group shadow-sm text-right cursor-pointer active:scale-95 duration-200"
+                >
+                    <div className="h-44 md:h-64 bg-slate-50 flex items-center justify-center relative border-b border-slate-100 overflow-hidden p-4 md:p-8">
+                        {product.image_url ? <img src={product.image_url} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" alt={product.title} /> : <i data-lucide="package" className="w-10 h-10 md:w-20 md:h-20 text-slate-200"></i>}
+                        <div className="absolute top-3 right-3 md:top-4 md:right-4">
+                            <span className={`text-[7px] md:text-[10px] font-black px-2 md:px-3 py-1 rounded-full shadow-sm ${product.supplierstock?.length > 0 ? 'bg-white/90 text-emerald-600 border border-emerald-100' : 'bg-slate-200/90 text-slate-500'}`}>{product.supplierstock?.length > 0 ? 'آماده ارسال' : 'ناموجود'}</span>
+                        </div>
+                    </div>
+                    <div className="p-4 md:p-10 flex-1 flex flex-col">
+                        <h3 className="text-xs md:text-lg font-black text-slate-800 mb-4 line-clamp-2 h-8 md:h-14 leading-snug whitespace-normal">{product.title}</h3>
+                        {minPrice ? (
+                            <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
+                                <div className="flex flex-col md:flex-row justify-between bg-blue-50/50 p-2 md:p-4 rounded-xl border border-blue-100/50 gap-1">
+                                    <span className="text-slate-500 text-[8px] md:text-[9px] font-bold">کف قیمت عمده</span>
+                                    <span className="font-black text-blue-900 text-sm md:text-lg">{minPrice.toLocaleString()} <span className="text-[10px] opacity-60 font-normal">ت</span></span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 p-4 rounded-xl text-center mb-4 md:mb-6 border border-dashed border-slate-200"><p className="text-[8px] md:text-[9px] text-slate-400 font-black italic tracking-tighter">در حال تأمین...</p></div>
+                        )}
+                        <div className="mt-auto pt-3 border-t border-slate-50 flex justify-between items-center text-[7px] md:text-[10px] font-black text-slate-400">
+                            <span>کد: {product.id}</span>
+                            <span className="flex items-center gap-1">تحویل ۴۸س <i data-lucide="truck" className="w-3 h-3 md:w-3.5 md:h-3.5 text-emerald-600"></i></span>
+                        </div>
+                    </div>
                 </div>
             );
         };
