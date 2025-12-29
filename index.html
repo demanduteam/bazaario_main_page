@@ -58,11 +58,9 @@
             const [categories, setCategories] = useState([]);
             const [loading, setLoading] = useState(true);
             const [searchTerm, setSearchTerm] = useState('');
-            const [selectedCat, setSelectedCat] = useState(null);
             const [logoError, setLogoError] = useState(false);
             const [showSearchDropdown, setShowSearchDropdown] = useState(false);
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-            const [currentView, setCurrentView] = useState('home'); 
             const searchContainerRef = useRef(null);
 
             useEffect(() => {
@@ -80,14 +78,7 @@
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
-                
-                if (currentView === 'category' && selectedCat) {
-                    const catName = categories.find(c => c.id === selectedCat)?.title;
-                    document.title = `خرید عمده ${catName} از گناوه | بازاریو`;
-                } else {
-                    document.title = "بازاریو | راهکار هوشمند تأمین مستقیم و مدیریت سود خرده‌فروشی";
-                }
-            }, [loading, products, showSearchDropdown, mobileMenuOpen, currentView, selectedCat, categories]);
+            }, [loading, products, showSearchDropdown, mobileMenuOpen, categories]);
 
             const fetchInitialData = async () => {
                 setLoading(true);
@@ -109,14 +100,6 @@
                 setLoading(false);
             };
 
-            const filteredProducts = useMemo(() => {
-                return products.filter(p => {
-                    const matchesSearch = p.title.toLowerCase().includes(searchTerm.toLowerCase());
-                    const matchesCat = selectedCat ? p.productcategoryid === selectedCat : true;
-                    return matchesSearch && matchesCat;
-                });
-            }, [products, searchTerm, selectedCat]);
-
             const searchSuggestions = useMemo(() => {
                 if (!searchTerm.trim()) return [];
                 return products.filter(p => 
@@ -137,32 +120,29 @@
                 }
             };
 
-            const handleCategoryClick = (catId) => {
-                setSelectedCat(catId);
-                setCurrentView(catId ? 'category' : 'home');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                setMobileMenuOpen(false);
+            // NEW: SEO-Friendly Category Redirection
+            const handleCategoryClick = (catId, catTitle) => {
+                if (!catId) return; // For 'All', we stay on home
+                
+                const slug = catTitle.trim().replace(/\s+/g, '-').replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, '');
+                const targetUrl = `categories.html?id=${catId}&slug=${encodeURIComponent(slug)}`;
+                
+                try {
+                    window.location.assign(targetUrl);
+                } catch (e) {
+                    console.warn("Nav failed", e);
+                }
             };
 
-            // OPTIMIZED: Include ID in URL for robust linking
             const handleProductClick = (product) => {
-                const slug = product.title.trim()
-                    .replace(/\s+/g, '-')
-                    .replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, ''); 
-
-                // Pass BOTH ID and Slug
+                const slug = product.title.trim().replace(/\s+/g, '-').replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, ''); 
                 const targetUrl = `products.html?id=${product.id}&slug=${encodeURIComponent(slug)}`;
-
                 try {
                     window.location.assign(targetUrl);
                 } catch (e) {
                     console.warn("Navigation failed:", e);
                 }
             };
-
-            const selectedCategoryData = useMemo(() => {
-                return categories.find(c => c.id === selectedCat);
-            }, [categories, selectedCat]);
 
             return (
                 <div className="min-h-screen flex flex-col">
@@ -176,7 +156,7 @@
                                 >
                                     <i data-lucide="menu"></i>
                                 </button>
-                                <div onClick={() => {setCurrentView('home'); setSelectedCat(null);}} className="cursor-pointer flex items-center gap-2">
+                                <div onClick={() => window.location.reload()} className="cursor-pointer flex items-center gap-2">
                                     {!logoError ? (
                                         <img src={logoPath} alt="Logo" className="w-9 h-9 md:w-12 md:h-12 rounded-lg md:rounded-xl shadow-md object-cover border border-slate-100" onError={() => setLogoError(true)} />
                                     ) : (
@@ -186,7 +166,7 @@
                                 </div>
                             </div>
 
-                            {/* Search bar with improved mobile UX */}
+                            {/* Search */}
                             <div className="flex-1 max-w-xl hidden md:block relative" ref={searchContainerRef}>
                                 <div className="flex w-full border border-slate-200 rounded-xl md:rounded-2xl overflow-hidden bg-slate-50 focus-within:border-blue-900 focus-within:bg-white transition-all shadow-inner text-right">
                                     <input 
@@ -260,7 +240,6 @@
                                             />
                                             <button className="bg-blue-900 text-white px-4 flex items-center justify-center"><i data-lucide="search" className="w-4 h-4"></i></button>
                                         </div>
-                                        {/* Mobile Suggestions */}
                                         {searchTerm.trim() && (
                                             <div className="mt-2 bg-white rounded-xl shadow-lg border border-slate-100 overflow-hidden">
                                                 {searchSuggestions.length > 0 ? (
@@ -278,7 +257,7 @@
 
                                     <nav className="space-y-8 text-right">
                                         <div className="space-y-4">
-                                            <div onClick={() => handleCategoryClick(null)} className="flex items-center gap-4 text-sm font-black text-slate-700 cursor-pointer p-3 rounded-2xl hover:bg-slate-50">
+                                            <div onClick={() => window.location.reload()} className="flex items-center gap-4 text-sm font-black text-slate-700 cursor-pointer p-3 rounded-2xl hover:bg-slate-50">
                                                 <i data-lucide="home" className="text-blue-900 w-5 h-5"></i> صفحه اصلی
                                             </div>
                                             <a href="https://blog.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
@@ -297,11 +276,11 @@
                                                 {categories.map(cat => (
                                                     <div 
                                                         key={cat.id} 
-                                                        onClick={() => handleCategoryClick(cat.id)} 
-                                                        className={`p-4 rounded-2xl text-xs font-black transition-all flex items-center justify-between ${selectedCat === cat.id ? 'bg-blue-900 text-white shadow-lg' : 'bg-slate-50 text-slate-600 active:bg-slate-100'}`}
+                                                        onClick={() => handleCategoryClick(cat.id, cat.title)} 
+                                                        className="p-4 rounded-2xl text-xs font-black transition-all flex items-center justify-between bg-slate-50 text-slate-600 active:bg-slate-100 cursor-pointer"
                                                     >
                                                         <span>{cat.title}</span>
-                                                        <i data-lucide="chevron-left" className={`w-3 h-3 ${selectedCat === cat.id ? 'text-white' : 'text-slate-300'}`}></i>
+                                                        <i data-lucide="chevron-left" className="w-3 h-3 text-slate-300"></i>
                                                     </div>
                                                 ))}
                                             </div>
@@ -311,10 +290,6 @@
 
                                 <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
                                     <button className="w-full bg-blue-900 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 mb-4">پنل مدیریت خرید</button>
-                                    <div className="flex justify-center gap-6">
-                                        <a href="https://t.me/bazaario" className="text-slate-400 hover:text-blue-500"><i data-lucide="send" className="w-6 h-6"></i></a>
-                                        <a href="tel:09036712820" className="text-slate-400 hover:text-emerald-500"><i data-lucide="phone" className="w-6 h-6"></i></a>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -322,60 +297,38 @@
 
                     {/* Main Content Area */}
                     <main className="flex-1">
-                        {currentView === 'home' && (
-                            <>
-                                <section className="bg-white border-b border-slate-100 py-4 md:py-8 text-right">
-                                    <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8">
-                                        <aside className="w-full md:w-64 shrink-0 overflow-hidden text-nowrap">
-                                            <div className="md:bg-slate-50/50 md:rounded-[32px] md:p-6 md:border md:border-slate-100">
-                                                <h2 className="hidden md:block text-[10px] font-black text-slate-400 mb-6 px-2 uppercase tracking-[0.2em]">اکوسیستم محصولات</h2>
-                                                <nav className="flex md:flex-col gap-2 overflow-x-auto no-scrollbar py-2 md:py-0">
-                                                    <div onClick={() => handleCategoryClick(null)} className={`flex items-center gap-2 px-4 py-2.5 rounded-full md:rounded-2xl text-xs md:text-sm font-black cursor-pointer transition-all ${!selectedCat ? 'bg-blue-900 text-white shadow-lg' : 'bg-slate-100 text-slate-600'}`}>
-                                                        <i data-lucide="list" className="w-4 h-4 opacity-50"></i>
-                                                        <span>همه بازار</span>
-                                                    </div>
-                                                    {categories.map(cat => (
-                                                        <div key={cat.id} onClick={() => handleCategoryClick(cat.id)} className="flex items-center gap-2 px-4 py-2.5 rounded-full md:rounded-2xl text-xs md:text-sm font-bold bg-slate-100 text-slate-600 cursor-pointer whitespace-nowrap active:bg-slate-200">
-                                                            <span>{cat.title}</span>
-                                                        </div>
-                                                    ))}
-                                                </nav>
-                                            </div>
-                                        </aside>
-                                        <div className="flex-1 relative rounded-[32px] md:rounded-[48px] overflow-hidden market-gradient text-white flex items-center p-8 md:p-12 min-h-[300px] md:min-h-[480px] shadow-2xl">
-                                            <div className="relative z-10 max-w-xl text-right">
-                                                <h1 className="text-2xl md:text-6xl font-black mb-4 md:mb-8 leading-tight">تأمین هوشمند؛ <br/> تضمین «جنس جور»</h1>
-                                                <p className="text-xs md:text-lg text-slate-300 mb-6 md:mb-12 leading-relaxed">واسطه‌های تهران را حذف کردیم. کالای وارداتی را مستقیماً از مبدأ با قیمت رقابتی تأمین کنید.</p>
-                                                <button className="bg-white text-blue-900 px-8 md:px-12 py-3 md:py-5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg">مشاهده لیست کالاها</button>
-                                            </div>
-                                            <div className="absolute inset-0 opacity-10 pointer-events-none">
-                                                <svg width="100%" height="100%"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/></pattern><rect width="100%" height="100%" fill="url(#grid)" /></svg>
-                                            </div>
-                                        </div>
+                        <section className="bg-white border-b border-slate-100 py-4 md:py-8 text-right">
+                            <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row gap-6 md:gap-8">
+                                <aside className="w-full md:w-64 shrink-0 overflow-hidden text-nowrap">
+                                    <div className="md:bg-slate-50/50 md:rounded-[32px] md:p-6 md:border md:border-slate-100">
+                                        <h2 className="hidden md:block text-[10px] font-black text-slate-400 mb-6 px-2 uppercase tracking-[0.2em]">اکوسیستم محصولات</h2>
+                                        <nav className="flex md:flex-col gap-2 overflow-x-auto no-scrollbar py-2 md:py-0">
+                                            {categories.map(cat => (
+                                                <div key={cat.id} onClick={() => handleCategoryClick(cat.id, cat.title)} className="flex items-center gap-2 px-4 py-2.5 rounded-full md:rounded-2xl text-xs md:text-sm font-bold bg-slate-100 text-slate-600 cursor-pointer whitespace-nowrap active:bg-slate-200">
+                                                    <span>{cat.title}</span>
+                                                </div>
+                                            ))}
+                                        </nav>
                                     </div>
-                                </section>
-                                <section className="max-w-7xl mx-auto px-4 py-12 text-right">
-                                    <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-8 md:mb-12">آخرین ورودی‌های بندر</h2>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
-                                        {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} onProductClick={handleProductClick} formatPersianDate={formatPersianDate} />)}
+                                </aside>
+                                <div className="flex-1 relative rounded-[32px] md:rounded-[48px] overflow-hidden market-gradient text-white flex items-center p-8 md:p-12 min-h-[300px] md:min-h-[480px] shadow-2xl">
+                                    <div className="relative z-10 max-w-xl text-right">
+                                        <h1 className="text-2xl md:text-6xl font-black mb-4 md:mb-8 leading-tight">تأمین هوشمند؛ <br/> تضمین «جنس جور»</h1>
+                                        <p className="text-xs md:text-lg text-slate-300 mb-6 md:mb-12 leading-relaxed">واسطه‌های تهران را حذف کردیم. کالای وارداتی را مستقیماً از مبدأ با قیمت رقابتی تأمین کنید.</p>
+                                        <button className="bg-white text-blue-900 px-8 md:px-12 py-3 md:py-5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg">مشاهده لیست کالاها</button>
                                     </div>
-                                </section>
-                            </>
-                        )}
-
-                        {currentView === 'category' && (
-                            <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 text-right">
-                                <div className="flex items-center gap-2 text-[10px] md:text-xs font-black text-slate-400 mb-8 overflow-x-auto no-scrollbar whitespace-nowrap">
-                                    <span onClick={() => handleCategoryClick(null)} className="hover:text-blue-900 cursor-pointer">بازاریو</span>
-                                    <i data-lucide="chevron-left" className="w-3 h-3"></i>
-                                    <span className="text-slate-900">خرید عمده {selectedCategoryData?.title}</span>
+                                    <div className="absolute inset-0 opacity-10 pointer-events-none">
+                                        <svg width="100%" height="100%"><pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/></pattern><rect width="100%" height="100%" fill="url(#grid)" /></svg>
+                                    </div>
                                 </div>
-                                <h1 className="text-2xl md:text-5xl font-black text-slate-900 mb-8 md:mb-12">تأمین و پخش عمده {selectedCategoryData?.title}</h1>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-                                    {filteredProducts.map(product => <ProductCard key={product.id} product={product} onProductClick={handleProductClick} formatPersianDate={formatPersianDate} />)}
-                                </div>
-                            </section>
-                        )}
+                            </div>
+                        </section>
+                        <section className="max-w-7xl mx-auto px-4 py-12 text-right">
+                            <h2 className="text-2xl md:text-4xl font-black text-slate-900 mb-8 md:mb-12">آخرین ورودی‌های بندر</h2>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-10">
+                                {products.slice(0, 12).map(product => <ProductCard key={product.id} product={product} onProductClick={handleProductClick} formatPersianDate={formatPersianDate} />)}
+                            </div>
+                        </section>
                     </main>
 
                     {/* Footer */}
