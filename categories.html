@@ -303,7 +303,10 @@
                                         <>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8">
                                                 {products.map(product => {
-                                                    const minPrice = product.supplierstock?.length > 0 ? Math.min(...product.supplierstock.map(s => s.unitprice)) : null;
+                                                    // Pricing Strategy for Category Page
+                                                    const maxPrice = product.supplierstock?.length > 0 ? Math.max(...product.supplierstock.map(s => s.unitprice)) : null;
+                                                    const bulkPrice = maxPrice ? Math.round(maxPrice * 1.1) : null;
+                                                    
                                                     return (
                                                         <div 
                                                             key={product.id}
@@ -324,10 +327,10 @@
                                                             </div>
                                                             <div className="p-6 flex-1 flex flex-col">
                                                                 <h3 className="text-sm font-black text-slate-800 mb-4 line-clamp-2 h-10 leading-snug">{product.title}</h3>
-                                                                {minPrice ? (
+                                                                {bulkPrice ? (
                                                                     <div className="mt-auto">
-                                                                        <p className="text-[10px] text-slate-400 font-bold mb-1">قیمت همکاری (عمده)</p>
-                                                                        <p className="text-lg font-black text-blue-900">{minPrice.toLocaleString()} <span className="text-xs font-normal text-slate-500">تومان</span></p>
+                                                                        <p className="text-[10px] text-slate-400 font-bold mb-1">خرید تیراژ (۵۰+)</p>
+                                                                        <p className="text-lg font-black text-blue-900">{bulkPrice.toLocaleString()} <span className="text-xs font-normal text-slate-500">تومان</span></p>
                                                                     </div>
                                                                 ) : (
                                                                     <div className="mt-auto text-slate-400 text-xs font-black italic">تماس بگیرید</div>
@@ -394,7 +397,7 @@
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-16">
                                 <div className="md:col-span-6 space-y-8">
                                     <div className="flex items-center gap-4">
-                                        <div className="bg-blue-900 p-2 rounded-xl text-white shadow-lg"><i data-lucide="activity" className="w-5 h-5"></i></div>
+                                        <div className="bg-blue-900 p-2 rounded-xl text-white shadow-md"><i data-lucide="activity" className="w-6 h-6"></i></div>
                                         <span className="text-3xl font-black tracking-tighter">بازاریو</span>
                                     </div>
                                     <p className="text-slate-400 text-lg leading-relaxed max-w-xl font-medium italic border-r-4 border-blue-600 pr-6">
