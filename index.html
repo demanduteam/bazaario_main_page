@@ -31,9 +31,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* Mobile Drawer Transition */
-        .drawer-open { transform: translateX(0); }
-        .drawer-closed { transform: translateX(100%); }
+        /* Animation Utilities */
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fadeInUp 0.3s ease-out forwards; }
+        
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-down { animation: fadeInDown 0.3s ease-out forwards; }
     </style>
 </head>
 <body class="bg-[#f8fafc] text-slate-800">
@@ -61,13 +64,24 @@
             const [logoError, setLogoError] = useState(false);
             const [showSearchDropdown, setShowSearchDropdown] = useState(false);
             const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+            
+            // --- NEW: Dropdown States ---
+            const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+            const [mobileSupplierExpanded, setMobileSupplierExpanded] = useState(false);
+            
             const searchContainerRef = useRef(null);
+            const supplierDropdownRef = useRef(null);
 
             useEffect(() => {
                 fetchInitialData();
                 const handleClickOutside = (e) => {
+                    // Close search dropdown
                     if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
                         setShowSearchDropdown(false);
+                    }
+                    // Close supplier dropdown
+                    if (supplierDropdownRef.current && !supplierDropdownRef.current.contains(e.target)) {
+                        setShowSupplierDropdown(false);
                     }
                 };
                 document.addEventListener('mousedown', handleClickOutside);
@@ -78,7 +92,7 @@
                 if (typeof lucide !== 'undefined') {
                     lucide.createIcons();
                 }
-            }, [loading, products, showSearchDropdown, mobileMenuOpen, categories]);
+            }, [loading, products, showSearchDropdown, mobileMenuOpen, categories, showSupplierDropdown, mobileSupplierExpanded]);
 
             const fetchInitialData = async () => {
                 setLoading(true);
@@ -120,28 +134,17 @@
                 }
             };
 
-            // NEW: SEO-Friendly Category Redirection
             const handleCategoryClick = (catId, catTitle) => {
-                if (!catId) return; // For 'All', we stay on home
-                
+                if (!catId) return; 
                 const slug = catTitle.trim().replace(/\s+/g, '-').replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, '');
                 const targetUrl = `categories.html?id=${catId}&slug=${encodeURIComponent(slug)}`;
-                
-                try {
-                    window.location.assign(targetUrl);
-                } catch (e) {
-                    console.warn("Nav failed", e);
-                }
+                try { window.location.assign(targetUrl); } catch (e) { console.warn("Nav failed", e); }
             };
 
             const handleProductClick = (product) => {
                 const slug = product.title.trim().replace(/\s+/g, '-').replace(/[^\u0600-\u06FFa-zA-Z0-9-]/g, ''); 
                 const targetUrl = `products.html?id=${product.id}&slug=${encodeURIComponent(slug)}`;
-                try {
-                    window.location.assign(targetUrl);
-                } catch (e) {
-                    console.warn("Navigation failed:", e);
-                }
+                try { window.location.assign(targetUrl); } catch (e) { console.warn("Navigation failed:", e); }
             };
 
             return (
@@ -209,7 +212,45 @@
                             <div className="hidden md:flex items-center gap-6 shrink-0">
                                 <a href="https://blog.bazaario.net/" className="text-xs font-black text-slate-600 hover:text-blue-900 transition-colors">مجله بازاریو</a>
                                 <a href="https://tools.bazaario.net/" className="flex items-center gap-2 text-xs font-black text-blue-900"><i data-lucide="wrench" className="text-emerald-600"></i> ابزارها</a>
-                                <button className="bg-blue-900 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg">پنل خرید</button>
+                                
+                                {/* --- UPDATED: Supplier Panel Dropdown --- */}
+                                <div className="relative" ref={supplierDropdownRef}>
+                                    <button 
+                                        onClick={() => setShowSupplierDropdown(!showSupplierDropdown)}
+                                        className="bg-blue-900 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg flex items-center gap-2 hover:bg-blue-800 transition-colors"
+                                    >
+                                        پنل تامین‌کنندگان
+                                        <i data-lucide="chevron-down" className={`w-3 h-3 transition-transform duration-200 ${showSupplierDropdown ? 'rotate-180' : ''}`}></i>
+                                    </button>
+                                    
+                                    {showSupplierDropdown && (
+                                        <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-[120] animate-fade-in-up">
+                                            <div className="p-1">
+                                                <a href="Smart_Sourcing_Engine.html" className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-right group">
+                                                    <div className="bg-orange-50 text-orange-600 p-2.5 rounded-lg group-hover:bg-orange-100 transition-colors shrink-0">
+                                                        <i data-lucide="calculator" className="w-5 h-5"></i>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-black text-slate-700 mb-0.5 group-hover:text-blue-900 transition-colors">مهندسی خرید</div>
+                                                        <div className="text-[10px] text-slate-400 font-bold truncate">محاسبه قیمت تمام شده و حاشیه سود</div>
+                                                    </div>
+                                                </a>
+                                                <a href="demand_radar.html" className="flex items-center gap-3 p-3 hover:bg-slate-50 rounded-xl transition-colors text-right group">
+                                                    <div className="bg-blue-50 text-blue-600 p-2.5 rounded-lg group-hover:bg-blue-100 transition-colors shrink-0">
+                                                        <i data-lucide="radar" className="w-5 h-5"></i>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="text-xs font-black text-slate-700 mb-0.5 group-hover:text-blue-900 transition-colors">رادار بازار</div>
+                                                        <div className="text-[10px] text-slate-400 font-bold truncate">شناسایی تقاضا و شکاف عرضه</div>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                            <div className="bg-slate-50 p-2 text-center border-t border-slate-100">
+                                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">توسعه دهنده</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -255,11 +296,37 @@
                                         )}
                                     </div>
 
-                                    <nav className="space-y-8 text-right">
-                                        <div className="space-y-4">
+                                    <nav className="space-y-6 text-right">
+                                        <div className="space-y-2">
                                             <div onClick={() => window.location.reload()} className="flex items-center gap-4 text-sm font-black text-slate-700 cursor-pointer p-3 rounded-2xl hover:bg-slate-50">
                                                 <i data-lucide="home" className="text-blue-900 w-5 h-5"></i> صفحه اصلی
                                             </div>
+                                            
+                                            {/* --- UPDATED: Mobile Supplier Accordion --- */}
+                                            <div className="space-y-1">
+                                                <div 
+                                                    onClick={() => setMobileSupplierExpanded(!mobileSupplierExpanded)} 
+                                                    className={`flex items-center justify-between gap-4 text-sm font-black p-3 rounded-2xl cursor-pointer transition-colors select-none ${mobileSupplierExpanded ? 'bg-blue-50 text-blue-900' : 'text-slate-700 hover:bg-slate-50'}`}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <i data-lucide="container" className={`${mobileSupplierExpanded ? 'text-blue-600' : 'text-slate-500'} w-5 h-5`}></i>
+                                                        پنل تامین‌کنندگان
+                                                    </div>
+                                                    <i data-lucide="chevron-down" className={`w-4 h-4 transition-transform duration-300 ${mobileSupplierExpanded ? 'rotate-180' : ''}`}></i>
+                                                </div>
+                                                
+                                                {mobileSupplierExpanded && (
+                                                    <div className="pr-12 space-y-1 animate-fade-in-down">
+                                                        <a href="Smart_Sourcing_Engine.html" className="block text-xs font-bold text-slate-500 hover:text-blue-900 py-3 border-r-2 border-slate-200 hover:border-orange-500 pr-4 transition-all">
+                                                            مهندسی خرید (Costing)
+                                                        </a>
+                                                        <a href="demand_radar.html" className="block text-xs font-bold text-slate-500 hover:text-blue-900 py-3 border-r-2 border-slate-200 hover:border-blue-500 pr-4 transition-all">
+                                                            رادار بازار (Demand Radar)
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </div>
+
                                             <a href="https://blog.bazaario.net/" className="flex items-center gap-4 text-sm font-black text-slate-700 p-3 rounded-2xl hover:bg-slate-50">
                                                 <i data-lucide="book-open" className="text-emerald-500 w-5 h-5"></i> مجله بازاریو
                                             </a>
@@ -286,10 +353,6 @@
                                             </div>
                                         </div>
                                     </nav>
-                                </div>
-
-                                <div className="p-6 border-t border-slate-100 bg-slate-50 mt-auto">
-                                    <button className="w-full bg-blue-900 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-900/20 mb-4">پنل مدیریت خرید</button>
                                 </div>
                             </div>
                         </div>
