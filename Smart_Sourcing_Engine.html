@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ماژول مهندسی خرید هوشمند</title>
+    
+    <!-- Core Libraries -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        vazir: ['Vazirmatn', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Vazirmatn', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .dark body {
+            background-color: #111827;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5; /* Indigo */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style range inputs */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #4b5563; /* dark:bg-gray-700 */
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type=range]:hover {
+            opacity: 1;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #6366f1; /* indigo-500 */
+            cursor: pointer;
+        }
+        /* NEW: Sticky column for comparison table */
+        .sticky-col {
+            position: -webkit-sticky;
+            position: sticky;
+            left: 0;
+            background-color: #1f2937; /* bg-gray-800 */
+            z-index: 10;
+        }
+        thead .sticky-col {
+            z-index: 20;
+        }
+    </style>
+</head>
+<body class="dark">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==================================================
+        // Helper Functions
+        // ==================================================
+        const formatCurrency = (value) => {
+            if (value === null || typeof value === 'undefined' || isNaN(value)) return '۰';
+            return `${Number(value).toLocaleString('fa-IR')}`;
+        };
+
+        const formatPercent = (value) => {
+            if (value === null || typeof value === 'undefined' || isNaN(value)) return '۰';
+            return `${Number(value).toLocaleString('fa-IR', { style: 'percent', minimumFractionDigits: 0 })}`;
+        };
+        
+        const strategyDefaults = {
+            'safe': { fast: 70, trend: 20, niche: 10 },
+            'trend': { fast: 20, trend: 60, niche: 20 },
+            'margin': { fast: 20, trend: 30, niche: 50 },
+            'balanced': { fast: 40, trend: 30, niche: 30 },
+        };
+
+        // ==================================================
+        // Mock Data Generation
+        // ==================================================
+        const generateMockResults = (budget, category, allocation) => {
+            const categoryName = {
+                'speaker': 'اسپیکر',
+                'headphone': 'هدفون',
+                'cable': 'کابل',
+                'kitchen': 'لوازم آشپزخانه',
+            }[category] || 'کالا';
+
+            const results = {
+                summary: {
+                    totalBudget: budget,
+                    fastAmount: budget * (allocation.fast / 100),
+                    trendAmount: budget * (allocation.trend / 100),
+                    nicheAmount: budget * (allocation.niche / 100),
+                },
+                products: [
+                    // Fast Movers
+                    { id: 1, name: `${categoryName} مدل A (پرفروش)`, type: 'پرفروش', buyPrice: 2500000, demand: 950, margin: 0.08, growth: 0.05, competition: 'زیاد', suggestion: 'خرید' },
+                    { id: 2, name: `${categoryName} مدل X (پرفروش)`, type: 'پرفروش', buyPrice: 1200000, demand: 1100, margin: 0.10, growth: 0.02, competition: 'زیاد', suggestion: 'خرید' },
+                    // Emerging Trends
+                    { id: 3, name: `${categoryName} مدل B (تریندی)`, type: 'تریندی', buyPrice: 3000000, demand: 250, margin: 0.25, growth: 0.23, competition: 'متوسط', suggestion: 'خرید' },
+                    { id: 4, name: `${categoryName} مدل Y (تریندی)`, type: 'تریندی', buyPrice: 4500000, demand: 180, margin: 0.22, growth: 0.35, competition: 'پایین', suggestion: 'خرید' },
+                    // High Margin Niche
+                    { id: 5, name: `${categoryName} مدل C (خاص)`, type: 'خاص', buyPrice: 4000000, demand: 70, margin: 0.35, growth: 0.12, competition: 'پایین', suggestion: 'بررسی' },
+                ],
+            };
+            
+            // Filter products based on allocation. If 0%, don't show.
+            results.products = results.products.filter(p => {
+                if (p.type === 'پرفروش' && allocation.fast > 0) return true;
+                if (p.type === 'تریندی' && allocation.trend > 0) return true;
+                if (p.type === 'خاص' && allocation.niche > 0) return true;
+                return false;
+            });
+            
+            return results;
+        };
+
+        // ==================================================
+        // Main App Component
+        // ==================================================
+        const SmartSourcingDashboard = () => {
+            const [step, setStep] = useState(1);
+            const [isLoading, setIsLoading] = useState(false);
+            
+            // --- Step 1: Inputs ---
+            const [budget, setBudget] = useState(50000000);
+            const [category, setCategory] = useState('speaker');
+            const [strategy, setStrategy] = useState('balanced');
+            
+            // --- Step 2: Allocation ---
+            const [allocation, setAllocation] = useState(strategyDefaults.balanced);
+
+            // --- Step 3: Results ---
+            const [results, setResults] = useState({ summary: {}, products: [] });
+
+            // --- NEW: Step 4: Comparison ---
+            const [comparisonList, setComparisonList] = useState([]);
+
+            const handleToggleCompare = (productId) => {
+                setComparisonList(prevList => {
+                    if (prevList.includes(productId)) {
+                        return prevList.filter(id => id !== productId);
+                    } else {
+                        // You could add a limit here if you want
+                        // if (prevList.length >= 5) {
+                        //     console.log("Maximum 5 items for comparison.");
+                        //     return prevList;
+                        // }
+                        return [...prevList, productId];
+                    }
+                });
+            };
+
+            const handleStrategyChange = (e) => {
+                const newStrategy = e.target.value;
+                setStrategy(newStrategy);
+                setAllocation(strategyDefaults[newStrategy]);
+            };
+
+            const handleAllocationChange = (changedKey, newValue) => {
+                newValue = parseInt(newValue, 10);
+                if (isNaN(newValue)) newValue = 0;
+                if (newValue > 100) newValue = 100;
+                if (newValue < 0) newValue = 0;
+
+                const otherKeys = Object.keys(allocation).filter(k => k !== changedKey);
+                let remainingValue = 100 - newValue;
+
+                const oldOtherTotal = otherKeys.reduce((sum, k) => sum + allocation[k], 0);
+                
+                let newAllocation = { ...allocation, [changedKey]: newValue };
+
+                if (oldOtherTotal === 0) {
+                    // Avoid division by zero, distribute evenly
+                    otherKeys.forEach((k, i) => {
+                        const val = Math.round(remainingValue / (otherKeys.length - i));
+                        newAllocation[k] = val;
+                        remainingValue -= val;
+                    });
+                } else {
+                    // Distribute proportionally
+                    let distributed = 0;
+                    otherKeys.forEach((k, index) => {
+                        const ratio = allocation[k] / oldOtherTotal;
+                        const val = (index === otherKeys.length - 1)
+                            ? remainingValue - distributed // Assign remainder to last item
+                            : Math.round(remainingValue * ratio);
+                        newAllocation[k] = val;
+                        distributed += val;
+                    });
+                }
+
+                // Final check to ensure 100% due to rounding
+                const finalTotal = Object.values(newAllocation).reduce((s, v) => s + v, 0);
+                const diff = 100 - finalTotal;
+                newAllocation[otherKeys[0]] += diff; // Add/remove rounding diff to one item
+
+                setAllocation(newAllocation);
+            };
+
+            const runAnalysis = (e) => {
+                e.preventDefault();
+                setIsLoading(true);
+                
+                // Simulate API call / heavy analysis
+                setTimeout(() => {
+                    const mockData = generateMockResults(budget, category, allocation);
+                    setResults(mockData);
+                    setIsLoading(false);
+                    setStep(2);
+                }, 1500);
+            };
+
+            const resetForm = () => {
+                setStep(1);
+                setResults({ summary: {}, products: [] });
+                setComparisonList([]); // <-- ADD THIS
+            };
+
+            const AllocationSlider = ({ label, name, value, color }) => (
+                <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                        <label htmlFor={name} className={`font-semibold ${color}`}>{label}</label>
+                        <span className={`px-2 py-0.5 rounded ${color.replace('text', 'bg').replace('-400', '-900/50')} ${color}`}>{value}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        id={name}
+                        name={name}
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={value}
+                        onChange={(e) => handleAllocationChange(name, e.target.value)}
+                        className="w-full"
+                    />
+                    <div className="text-center text-gray-400 font-semibold text-sm">
+                        {formatCurrency(budget * (value / 100))} تومان
+                    </div>
+                </div>
+            );
+            
+            const ResultRow = ({ product }) => {
+                const typeClasses = {
+                    'پرفروش': 'bg-blue-200 text-blue-900 dark:bg-blue-900/50 dark:text-blue-300',
+                    'تریندی': 'bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-300',
+                    'خاص': 'bg-purple-200 text-purple-900 dark:bg-purple-900/50 dark:text-purple-300',
+                };
+                const competitionClasses = {
+                    'زیاد': 'text-red-400',
+                    'متوسط': 'text-yellow-400',
+                    'پایین': 'text-green-400',
+                };
+                const suggestionClasses = {
+                    'خرید': 'text-green-500 font-bold',
+                    'بررسی': 'text-yellow-500 font-bold',
+                };
+                
+                return (
+                    <tr className="border-b border-gray-700 hover:bg-gray-800/50">
+                        {/* NEW: Checkbox Cell */}
+                        <td className="p-4 text-center">
+                            <input
+                                type="checkbox"
+                                className="h-5 w-5 rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                                checked={comparisonList.includes(product.id)}
+                                onChange={() => handleToggleCompare(product.id)}
+                            />
+                        </td>
+                        <td className="p-4 font-semibold">{product.name}</td>
+                        <td className="p-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${typeClasses[product.type] || ''}`}>
+                                {product.type}
+                            </span>
+                        </td>
+                        <td className="p-4">{formatCurrency(product.buyPrice)}</td>
+                        <td className="p-4">{formatCurrency(product.demand)}</td>
+                        <td className="p-4 font-semibold text-green-400">{formatPercent(product.margin)}</td>
+                        <td className="p-4 font-semibold text-cyan-400">{formatPercent(product.growth)}</td>
+                        <td className={`p-4 font-semibold ${competitionClasses[product.competition] || ''}`}>
+                            {product.competition}
+                        </td>
+                        <td className={`p-4 ${suggestionClasses[product.suggestion] || ''}`}>
+                            {product.suggestion === 'خرید' ? '✅' : '⚠️'} {product.suggestion}
+                        </td>
+                    </tr>
+                );
+            };
+
+            // NEW: Card component for mobile view
+            const ProductCard = ({ product }) => {
+                const typeClasses = {
+                    'پرفروش': 'bg-blue-200 text-blue-900 dark:bg-blue-900/50 dark:text-blue-300',
+                    'تریندی': 'bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-300',
+                    'خاص': 'bg-purple-200 text-purple-900 dark:bg-purple-900/50 dark:text-purple-300',
+                };
+                const competitionClasses = {
+                    'زیاد': 'text-red-400',
+                    'متوسط': 'text-yellow-400',
+                    'پایین': 'text-green-400',
+                };
+                const suggestionClasses = {
+                    'خرید': 'text-green-500',
+                    'بررسی': 'text-yellow-500',
+                };
+
+                // Re-usable Stat component for cards
+                const Stat = ({ label, value, className = "" }) => (
+                    <div className="bg-gray-900/70 p-3 rounded-lg text-center shadow-inner">
+                        <div className="text-xs text-gray-400 mb-1">{label}</div>
+                        <div className={`font-semibold text-sm ${className}`}>{value}</div>
+                    </div>
+                );
+
+                return (
+                    <div className="bg-gray-800 rounded-lg shadow-lg p-4">
+                        {/* Card Header */}
+                        <div className="flex justify-between items-center pb-3 mb-3 border-b border-gray-700">
+                            {/* NEW: Checkbox and title container */}
+                            <div className="flex items-center gap-3">
+                                <input
+                                    type="checkbox"
+                                    className="h-5 w-5 rounded bg-gray-700 border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                                    checked={comparisonList.includes(product.id)}
+                                    onChange={() => handleToggleCompare(product.id)}
+                                />
+                                <h3 className="font-semibold text-md">{product.name}</h3>
+                            </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${typeClasses[product.type] || ''}`}>
+                                {product.type}
+                            </span>
+                        </div>
+                        
+                        {/* Card Body Stats Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                            <Stat label="قیمت خرید" value={formatCurrency(product.buyPrice)} />
+                            <Stat label="تقاضای ۳۰ روز" value={formatCurrency(product.demand)} />
+                            <Stat label="مارژین سود" value={formatPercent(product.margin)} className="text-green-400" />
+                            <Stat label="رشد تقاضا" value={formatPercent(product.growth)} className="text-cyan-400" />
+                            <Stat label="رقابت" value={product.competition} className={competitionClasses[product.competition] || ''} />
+                            <Stat label="پیشنهاد" value={product.suggestion} className={`font-bold ${suggestionClasses[product.suggestion] || ''}`} />
+                        </div>
+                    </div>
+                );
+            };
+
+            // NEW: Comparison Table Component
+            const ComparisonTable = ({ products }) => {
+                const metrics = [
+                    { key: 'type', label: 'دسته', classes: (product) => {
+                        const typeClasses = {
+                            'پرفروش': 'bg-blue-200 text-blue-900 dark:bg-blue-900/50 dark:text-blue-300',
+                            'تریندی': 'bg-yellow-200 text-yellow-900 dark:bg-yellow-900/50 dark:text-yellow-300',
+                            'خاص': 'bg-purple-200 text-purple-900 dark:bg-purple-900/50 dark:text-purple-300',
+                        };
+                        return `px-2 py-1 rounded-full text-xs font-semibold ${typeClasses[product.type] || ''}`;
+                    }, format: (val) => val },
+                    { key: 'buyPrice', label: 'قیمت خرید', classes: () => 'font-mono', format: formatCurrency },
+                    { key: 'demand', label: 'تقاضای ۳۰ روز', classes: () => 'font-mono', format: formatCurrency },
+                    { key: 'margin', label: 'مارژین سود', classes: () => 'font-semibold text-green-400', format: formatPercent },
+                    { key: 'growth', label: 'رشد تقاضا', classes: () => 'font-semibold text-cyan-400', format: formatPercent },
+                    { key: 'competition', label: 'رقابت', classes: (product) => {
+                         const competitionClasses = {
+                            'زیاد': 'text-red-400',
+                            'متوسط': 'text-yellow-400',
+                            'پایین': 'text-green-400',
+                        };
+                        return `font-semibold ${competitionClasses[product.competition] || ''}`;
+                    }, format: (val) => val },
+                    { key: 'suggestion', label: 'پیشنهاد', classes: (product) => {
+                        const suggestionClasses = {
+                            'خرید': 'text-green-500 font-bold',
+                            'بررسی': 'text-yellow-500 font-bold',
+                        };
+                        return `${suggestionClasses[product.suggestion] || ''}`;
+                    }, format: (val) => `${val === 'خرید' ? '✅' : '⚠️'} ${val}` },
+                ];
+
+                return (
+                    <div className="bg-gray-800 p-4 rounded-lg shadow-lg overflow-x-auto">
+                        <table className="w-full text-right min-w-max">
+                            <thead>
+                                <tr className="border-b border-gray-600">
+                                    <th className="p-3 text-right font-semibold text-gray-400 sticky-col" style={{minWidth: '150px'}}>متریک</th>
+                                    {products.map(product => (
+                                        <th key={product.id} className="p-3 text-center font-semibold" style={{minWidth: '200px'}}>
+                                            {product.name}
+                                            <button 
+                                                onClick={() => handleToggleCompare(product.id)} 
+                                                className="mr-2 text-red-400 hover:text-red-600 text-xs"
+                                                title="حذف از مقایسه"
+                                            >
+                                                (حذف)
+                                            </button>
+                                        </th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {metrics.map(metric => (
+                                    <tr key={metric.key} className="border-b border-gray-700 hover:bg-gray-800/50">
+                                        <td className="p-4 font-semibold text-gray-300 sticky-col">{metric.label}</td>
+                                        {products.map(product => (
+                                            <td key={product.id} className="p-4 text-center">
+                                                <span className={metric.classes(product)}>
+                                                    {metric.format(product[metric.key])}
+                                                </span>
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="p-4 md:p-8 text-gray-100 min-h-screen">
+                    {/* Header */}
+                    <header className="mb-8">
+                        <h1 className="text-3xl font-bold">ماژول مهندسی خرید هوشمند (Smart Sourcing)</h1>
+                        <p className="text-gray-400 mt-1">بر اساس بودجه و استراتژی، بهترین کالاها را برای تأمین انتخاب کنید.</p>
+                    </header>
+                    
+                    {isLoading && (
+                        <div className="fixed inset-0 bg-gray-900/80 flex items-center justify-center z-50">
+                            <div className="flex flex-col items-center">
+                                <div className="spinner"></div>
+                                <p className="mt-4 text-lg font-semibold">در حال تحلیل داده بازار...</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 1: Input Form */}
+                    {step === 1 && (
+                        <form onSubmit={runAnalysis} className="max-w-4xl mx-auto">
+                            {/* --- بخش ۱: ورودی اصلی --- */}
+                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+                                <h2 className="text-xl font-bold mb-6 border-b border-gray-700 pb-3">گام ۱: ورودی‌های اصلی</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label htmlFor="budget" className="block text-sm font-medium mb-2">💰 بودجه کل خرید (تومان)</label>
+                                        <input
+                                            type="number"
+                                            id="budget"
+                                            value={budget}
+                                            onChange={(e) => setBudget(Number(e.target.value))}
+                                            className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:border-indigo-500 focus:ring-indigo-500"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="category" className="block text-sm font-medium mb-2">🏷 دسته‌بندی کالا</label>
+                                        <select
+                                            id="category"
+                                            value={category}
+                                            onChange={(e) => setCategory(e.target.value)}
+                                            className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:border-indigo-500 focus:ring-indigo-500"
+                                        >
+                                            <option value="speaker">اسپیکر</option>
+                                            <option value="headphone">هدفون و هدست</option>
+                                            <option value="cable">کابل و اتصالات</option>
+                                            <option value="kitchen">لوازم آشپزخانه</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* --- بخش ۲: استراتژی و بودجه‌بندی --- */}
+                            <div className="bg-gray-800 p-6 rounded-lg shadow-lg mb-6">
+                                <h2 className="text-xl font-bold mb-6 border-b border-gray-700 pb-3">گام ۲: استراتژی و بودجه‌بندی</h2>
+                                <div>
+                                    <label htmlFor="strategy" className="block text-sm font-medium mb-2">🎯 استراتژی خرید</label>
+                                    <select
+                                        id="strategy"
+                                        value={strategy}
+                                        onChange={handleStrategyChange}
+                                        className="w-full p-3 bg-gray-700 rounded-md border border-gray-600 focus:border-indigo-500 focus:ring-indigo-500 mb-6"
+                                    >
+                                        <option value="balanced">ترکیبی (Balanced Mix)</option>
+                                        <option value="safe">ایمن (Safe Buy)</option>
+                                        <option value="trend">پیشتاز (Trend Catch)</option>
+                                        <option value="margin">سرمایه‌گذار (High Margin)</option>
+                                    </select>
+                                </div>
+                                
+                                <h3 className="text-lg font-semibold mb-4">تخصیص هوشمند بودجه</h3>
+                                <div className="p-4 bg-gray-900/50 rounded-lg">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+                                        <AllocationSlider
+                                            label="کالاهای پرفروش"
+                                            name="fast"
+                                            value={allocation.fast}
+                                            color="text-blue-400"
+                                        />
+                                        <AllocationSlider
+                                            label="کالاهای تریندی"
+                                            name="trend"
+                                            value={allocation.trend}
+                                            color="text-yellow-400"
+                                        />
+                                        <AllocationSlider
+                                            label="کالاهای خاص (سود بالا)"
+                                            name="niche"
+                                            value={allocation.niche}
+                                            color="text-purple-400"
+                                        />
+                                    </div>
+                                    <div className="text-center mt-6 pt-4 border-t border-gray-700">
+                                        <span className="text-lg font-bold text-green-500">مجموع: {allocation.fast + allocation.trend + allocation.niche}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* --- دکمه اجرا --- */}
+                            <div className="text-center">
+                                <button
+                                    type="submit"
+                                    className="w-full max-w-sm bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg text-lg hover:bg-indigo-700 disabled:bg-indigo-400"
+                                    disabled={(allocation.fast + allocation.trend + allocation.niche) !== 100}
+                                >
+                                    {(allocation.fast + allocation.trend + allocation.niche) !== 100 ? 'مجموع باید ۱۰۰٪ باشد' : 'مشاهده پیشنهاد خرید'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                    
+                    {/* Step 2: Results View */}
+                    {step === 2 && (
+                        <div>
+                            <button onClick={resetForm} className="mb-6 text-indigo-400 font-semibold hover:text-indigo-300">
+                                &larr; بازگشت و ویرایش ورودی‌ها
+                            </button>
+                            
+                            {/* --- خلاصه بودجه --- */}
+                            <h2 className="text-xl font-bold mb-4">خلاصه تخصیص بودجه</h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                                    <h3 className="text-gray-400">بودجه کل</h3>
+                                    <p className="text-3xl font-bold text-green-500 mt-2">{formatCurrency(results.summary.totalBudget)} <span className="text-lg">تومان</span></p>
+                                </div>
+                                <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                                    <h3 className="text-gray-400">پرفروش‌ها ({allocation.fast}٪)</h3>
+                                    <p className="text-3xl font-bold text-blue-400 mt-2">{formatCurrency(results.summary.fastAmount)} <span className="text-lg">تومان</span></p>
+                                </div>
+                                <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                                    <h3 className="text-gray-400">تریندی‌ها ({allocation.trend}٪)</h3>
+                                    <p className="text-3xl font-bold text-yellow-400 mt-2">{formatCurrency(results.summary.trendAmount)} <span className="text-lg">تومان</span></p>
+                                </div>
+                                <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
+                                    <h3 className="text-gray-400">خاص/سود بالا ({allocation.niche}٪)</h3>
+                                    <p className="text-3xl font-bold text-purple-400 mt-2">{formatCurrency(results.summary.nicheAmount)} <span className="text-lg">تومان</span></p>
+                                </div>
+                            </div>
+                            
+                            {/* --- لیست پیشنهادی --- */}
+                            <div className="bg-gray-800 p-4 rounded-lg shadow-lg">
+                                <h2 className="text-xl font-bold mb-4">لیست کالاهای پیشنهادی</h2>
+                                
+                                {/* --- MODIFIED: Desktop-only Table View --- */}
+                                <div className="overflow-x-auto hidden md:block">
+                                    <table className="w-full text-right min-w-max">
+                                        <thead>
+                                            <tr className="border-b border-gray-600">
+                                                <th className="p-3 text-center font-semibold">مقایسه</th>
+                                                <th className="p-3 text-right font-semibold">کالا</th>
+                                                <th className="p-3 text-center font-semibold">دسته</th>
+                                                <th className="p-3 text-right font-semibold">قیمت خرید (تخمینی)</th>
+                                                <th className="p-3 text-right font-semibold">تقاضای بازار (۳۰ روز)</th>
+                                                <th className="p-3 text-right font-semibold">مارژین سود (متوسط)</th>
+                                                <th className="p-3 text-right font-semibold">رشد تقاضا (۳ ماه)</th>
+                                                <th className="p-3 text-right font-semibold">وضعیت رقابت</th>
+                                                <th className="p-3 text-right font-semibold">پیشنهاد خرید</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {results.products.length > 0 ? (
+                                                results.products.map(product => <ResultRow key={product.id} product={product} />)
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan="8" className="text-center p-8 text-gray-500">
+                                                        هیچ کالایی متناسب با این تخصیص بودجه یافت نشد.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* --- NEW: Mobile-only Card View --- */}
+                                <div className="md:hidden space-y-4">
+                                    {results.products.length > 0 ? (
+                                        results.products.map(product => <ProductCard key={product.id} product={product} />)
+                                    ) : (
+                                        <div className="text-center p-8 text-gray-500">
+                                            هیچ کالایی متناسب با این تخصیص بودجه یافت نشد.
+                                        </div>
+                                    )}
+                                </div>
+
+                            </div>
+                            
+                            {/* --- دکمه‌های خروجی --- */}
+                            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
+                                <button 
+                                    onClick={() => console.log('Export PDF clicked. Implement PDF generation logic here.')}
+                                    className="bg-red-700 text-white font-semibold py-2 px-6 rounded-lg hover:bg-red-800"
+                                >
+                                    📥 دریافت گزارش PDF
+                                </button>
+                                {/* NEW: Compare Button */}
+                                <button
+                                    onClick={() => setStep(3)}
+                                    className="bg-cyan-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-cyan-700 disabled:bg-cyan-800 disabled:text-gray-400"
+                                    disabled={comparisonList.length < 2}
+                                >
+                                    📊 مقایسه {comparisonList.length > 0 ? `(${comparisonList.length.toLocaleString('fa-IR')})` : ''} کالا
+                                </button>
+                                <button 
+                                    onClick={() => console.log('Create Pre-order clicked. Implement pre-order logic here.')}
+                                    className="bg-green-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-green-700"
+                                >
+                                    🛒 ایجاد پیش‌سفارش
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NEW: Step 3: Comparison View */}
+                    {step === 3 && (
+                        <div>
+                            <button onClick={() => setStep(2)} className="mb-6 text-indigo-400 font-semibold hover:text-indigo-300">
+                                &larr; بازگشت به لیست نتایج
+                            </button>
+                            
+                            <h2 className="text-xl font-bold mb-4">ابزار مقایسه محصول</h2>
+                            
+                            {comparisonList.length > 0 ? (
+                                <ComparisonTable
+                                    products={results.products.filter(p => comparisonList.includes(p.id))}
+                                />
+                            ) : (
+                                <div className="text-center p-8 text-gray-500 bg-gray-800 rounded-lg">
+                                    هیچ کالایی برای مقایسه انتخاب نشده است. لطفا به لیست نتایج بازگردید و حداقل دو کالا را انتخاب کنید.
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                </div>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<SmartSourcingDashboard />);
+    </script>
+</body>
+</html>
