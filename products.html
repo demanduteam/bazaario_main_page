@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Meta tags will be updated dynamically by JS for SEO -->
-    <meta name="description" content="خرید عمده مستقیم از بندر گناوه و دبی با قیمت واردکننده اصلی در پلتفرم بازاریو">
+    <meta name="description" content="خرید عمده مستقیم از واردکننده و تولیدکننده با قیمت اصلی در پلتفرم بازاریو">
     <title>مشاهده محصول | بازاریو - تأمین هوشمند B2B</title>
     
     <!-- Tailwind CSS -->
@@ -129,7 +129,7 @@
             };
 
             const updateSEOMeta = (prod) => {
-                const title = `خرید عمده ${prod.title} | قیمت کف گناوه | بازاریو`;
+                const title = `خرید عمده ${prod.title} | قیمت کف | بازاریو`;
                 const description = `بهترین قیمت عمده ${prod.title} در دسته ${prod.productcategory?.title}. تأمین مستقیم از واردکننده با ارسال ۴۸ ساعته. همین حالا استعلام بگیرید.`;
                 document.title = title;
                 
@@ -252,7 +252,7 @@
                                         )}
                                         <div className="absolute top-8 right-8 flex flex-col gap-2">
                                             <span className="bg-emerald-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg">اصالت کالا تأیید شده</span>
-                                            <span className="bg-blue-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg">کفِ قیمت بندر</span>
+                                            <span className="bg-blue-900 text-white px-4 py-1.5 rounded-full text-[10px] font-black shadow-lg">کفِ قیمت</span>
                                         </div>
                                     </div>
                                 </div>
@@ -304,7 +304,7 @@
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-end gap-5 border border-slate-100">
                                             <div className="text-right">
-                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">تحویل بندر تا مغازه</p>
+                                                <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">تحویل از واردکننده تا مغازه</p>
                                                 <p className="text-sm font-black text-slate-700">۴۸ ساعته (Cross-Dock)</p>
                                             </div>
                                             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-blue-600"><i data-lucide="truck"></i></div>
@@ -312,7 +312,7 @@
                                         <div className="bg-slate-50 p-6 rounded-3xl flex items-center justify-end gap-5 border border-slate-100">
                                             <div className="text-right">
                                                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-tighter">سورسینگ کالا</p>
-                                                <p className="text-sm font-black text-slate-700">مستقیم از بندر گناوه</p>
+                                                <p className="text-sm font-black text-slate-700">مستقیم از واردکننده</p>
                                             </div>
                                             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm text-emerald-600"><i data-lucide="anchor"></i></div>
                                         </div>
@@ -358,7 +358,7 @@
                                             <h4 className="text-xl font-black text-slate-900 mb-6">چرا خرید عمده {product.title} از بازاریو هوشمندانه است؟</h4>
                                             <div className="text-slate-500 leading-loose text-justify font-medium space-y-6">
                                                 <p>
-                                                    در بازار پرنوسان امروز، خرید کالا با قیمت واردکننده اصلی، بزرگترین مزیت رقابتی یک خرده‌فروش است. پلتفرم بازاریو با تمرکز بر **حذف واسطه‌های سنتی تهران** و تمرکز بر سورسینگ مستقیم از بندر گناوه، این امکان را فراهم کرده تا {product.title} با قیمتی تا ۲۵٪ پایین‌تر از بازار پایتخت به دست شما برسد. مدل لجستیک ما اجازه «خواب سرمایه» را نمی‌دهد؛ کالا بلافاصله پس از تخلیه از لنج بارگیری شده و در مرکز کراس‌داک تهران برای مقصد نهایی تفکیک می‌شود.
+                                                    در بازار پرنوسان امروز، خرید کالا با قیمت واردکننده اصلی، بزرگترین مزیت رقابتی یک خرده‌فروش است. پلتفرم بازاریو با تمرکز بر **حذف واسطه‌های سنتی تهران** و تمرکز بر سورسینگ مستقیم از واردکننده، این امکان را فراهم کرده تا {product.title} با قیمتی تا ۲۵٪ پایین‌تر از بازار پایتخت به دست شما برسد. مدل لجستیک ما اجازه «خواب سرمایه» را نمی‌دهد؛ کالا بلافاصله پس از تخلیه از لنج بارگیری شده و در مرکز کراس‌داک تهران برای مقصد نهایی تفکیک می‌شود.
                                                 </p>
                                                 <p>
                                                     {product.title} در دسته {product.productcategory?.title} قرار دارد و بر اساس داده‌های بخش **تحلیل بازار بازاریو**، یکی از کالاهای پرتقاضا در نیم‌سال جاری است. تضمین «جنس جور» بازاریو به این معناست که شما هرگز به مشتری خود نخواهید گفت «نداریم»؛ چرا که زنجیره تأمین ما به صورت مستقیم به انبارهای مرزی و تولیدکنندگان اصلی متصل است.
@@ -371,14 +371,14 @@
                                         <div className="p-8 bg-blue-50 rounded-[32px] border border-blue-100">
                                             <h4 className="font-black text-blue-900 mb-6 flex items-center justify-end gap-2">راهنمای خرید <i data-lucide="info"></i></h4>
                                             <ul className="space-y-4">
-                                                <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">ارسال مستقیم از بندر به مغازه <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
+                                                <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">ارسال مستقیم از واردکننده یا تولید کننده به مغازه <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
                                                 <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">تضمین کمترین قیمت تأمین در کل کشور <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
                                                 <li className="flex gap-3 text-xs font-bold text-slate-600 justify-end">امکان ثبت استعلام اختصاصی برای تیراژ بالا <i data-lucide="check" className="text-emerald-500 w-4 h-4 shrink-0"></i></li>
                                             </ul>
                                         </div>
                                         <div className="p-8 bg-slate-900 rounded-[32px] text-white">
                                             <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-4">Strategic Insight</p>
-                                            <p className="text-sm font-bold leading-relaxed mb-6 italic">"سود واقعی شما در خریدِ درست است. بازاریو کالای جور را با قیمت بندر در اختیار شما می‌گذارد تا حاشیه سودتان تضمین شود."</p>
+                                            <p className="text-sm font-bold leading-relaxed mb-6 italic">"سود واقعی شما در خریدِ درست است. بازاریو کالای جور را با قیمت کف در اختیار شما می‌گذارد تا حاشیه سودتان تضمین شود."</p>
                                             <div className="flex items-center gap-3 justify-end">
                                                 <span className="text-[10px] font-black opacity-50 uppercase tracking-widest">Bazaario Strategy Team</span>
                                                 <div className="w-8 h-px bg-white/20"></div>
@@ -409,7 +409,7 @@
                                         <ul className="space-y-3 text-sm font-bold text-slate-500">
                                             <li><a href="https://blog.bazaario.net/" className="hover:text-white transition-all">مجله استراتژی</a></li>
                                             <li><a href="https://tools.bazaario.net/" className="hover:text-white transition-all">ابزارهای هوشمند</a></li>
-                                            <li><a href="tel:09036712820" className="hover:text-white transition-all">تماس با مرکز گناوه</a></li>
+                                            <li><a href="tel:09036712820" className="hover:text-white transition-all">تماس با مرکز پشتیبانی</a></li>
                                         </ul>
                                     </div>
                                     <div className="space-y-6">
